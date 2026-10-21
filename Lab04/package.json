@@ -1,0 +1,13 @@
+{
+  "name": "lab04-gpio-web-control",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lab4 Node.js web server and TX2 C++ GPIO control",
+  "scripts": {
+    "start": "node server.js",
+    "start:hardware": "node server.js --hardware",
+    "build:gpio": "make -C C++",
+    "test": "node test/run.js"
+  },
+  "engines": { "node": ">=12" }
+}

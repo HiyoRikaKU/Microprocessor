@@ -1,0 +1,4 @@
+node_modules/
+C++/gpio
+test/artifacts/
+*.log

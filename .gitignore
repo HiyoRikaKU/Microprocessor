@@ -1,0 +1,11 @@
+.DS_Store
+._*
+node_modules/
+__pycache__/
+*.pyc
+*.log
+.env
+.env.*
+!.env.example
+
+.github/readme-animation/.venv/
