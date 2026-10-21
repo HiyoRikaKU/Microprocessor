@@ -181,5 +181,11 @@ npm test
 
 暫存 sysfs 是一般檔案，只驗證參數與寫入流程，無法驗證 TX2 pinmux、Linux sysfs 驅動、GPIO 電壓、接線、實際 LED、真實網路或權限。`GPIO_SYSFS_ROOT` 僅供測試替換路徑，實機不要設定。
 
+## Turn off server
+```bash
+lsof -nP -iTCP:8080 -sTCP:LISTEN //抓那個port 被佔用
+kill "port_number"
+```
+
 
 實作參考：[Node.js execFile 文件](https://nodejs.org/api/child_process.html#child_processexecfilefile-args-options-callback)、[Linux GPIO sysfs 文件](https://www.kernel.org/doc/Documentation/gpio/sysfs.txt)。Linux 已將 sysfs GPIO 列為舊介面，本專案配合課程現有 TX2 使用。
