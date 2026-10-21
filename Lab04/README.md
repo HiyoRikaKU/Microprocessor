@@ -26,9 +26,106 @@ Submit、啟動交替閃爍、啟動或停止流水燈會取消舊動畫；Chang
 
 ## 在 TX2 控制實體 LED
 
-將**整個 Lab04 資料夾**複製到 TX2，例如家目錄 `~/Lab04`。Mac 編譯出的 `C++/gpio` 不能在 TX2 執行，所以必須在 TX2 重編。
+以下流程由 **MacBook M4 → VMware Fusion Ubuntu ARM64 → USB OTG → Jetson TX2**。程式在 TX2 執行，Ubuntu VM 用 SSH 管理 TX2、用瀏覽器操作 UI。
 
-以下腳位來自目前 Lab03 專案的既有接線配置，並非 Lab4 PDF 指定；本次沒有實機確認。請依實際接線核對 Linux GPIO 與實體 pin，LED 假設為寫入 1 亮、0 滅。
+### 1. USB 與 Ubuntu VM
+
+- 用可傳資料的 Micro-USB 線連接 TX2 的 Micro-B OTG 埠與 Mac，並替 TX2 接上電源。
+- VMware Fusion 詢問 USB 裝置連線位置時，選 **Linux (Ubuntu)**；若沒跳提示，到「虛擬機 → USB 和藍牙」選 NVIDIA / USB Ethernet 裝置。
+- Ubuntu VM 終端機安裝 VMware 工具（選用，改善剪貼簿）：
+
+```bash
+sudo apt update && sudo apt install -y open-vm-tools open-vm-tools-desktop
+```
+
+- 終端機貼上使用 `Ctrl+Shift+V`。如需改用 Xorg，編輯 GDM 設定並重開 VM：
+
+```bash
+sudo nano /etc/gdm3/custom.conf  # 將 #WaylandEnable=false 改成 WaylandEnable=false
+sudo reboot
+```
+
+### 2. Ubuntu VM 建立網路並登入 TX2
+
+```bash
+ip -br link                         # 找 TX2 USB 網卡名稱，常見為 usb0
+NET_IF=usb0                         # 若介面名稱不同，替換 usb0
+sudo ip link set "$NET_IF" up
+sudo dhclient "$NET_IF"            # 向 TX2 的 USB 網路 DHCP 取得位址；若找不到指令，先安裝 isc-dhcp-client
+ip -4 addr show "$NET_IF"          # 預期取得 192.168.55.x/24
+ping -c 3 192.168.55.1              # TX2 USB 網路預設位址
+TX2_USER=nvidia                     # 改成 TX2 上實際帳號
+TX2_IP=192.168.55.1
+ssh "$TX2_USER@$TX2_IP"            # 首次輸入 yes 與 TX2 密碼；exit 回 Ubuntu VM
+```
+
+`dhclient` 不存在時：`sudo apt update && sudo apt install -y isc-dhcp-client`。
+
+若偏好 NetworkManager，可用 `sudo nmcli device connect "$NET_IF"` 代替 `dhclient`。`Connection refused` 時稍候 30–60 秒後重試；必要時在 TX2 本機啟用 SSH：
+
+```bash
+sudo apt update && sudo apt install -y openssh-server
+sudo systemctl enable --now ssh
+```
+
+`Permission denied`：確認輸入的是 TX2 帳號密碼。主機金鑰改變時：
+
+```bash
+ssh-keygen -R "$TX2_IP"
+ssh "$TX2_USER@$TX2_IP"
+```
+
+### 3. 在 Ubuntu VM 傳送 Lab04 至 TX2
+
+在 **Ubuntu VM** 執行；把 `REPO` 改成 repository 在 VM 中的路徑：
+
+```bash
+REPO=~/microprocessor                 # 替換為實際 repository 路徑
+cd "$REPO"
+tar -czf /tmp/Lab04.tar.gz --exclude=Lab04/C++/gpio --exclude=Lab04/node_modules --exclude=Lab04/test/artifacts -C . Lab04
+scp /tmp/Lab04.tar.gz "$TX2_USER@$TX2_IP:~/Lab04.tar.gz"
+ssh "$TX2_USER@$TX2_IP" 'mkdir -p ~/Lab04 && tar -xzf ~/Lab04.tar.gz -C ~'
+```
+
+選用：在 Ubuntu VM 交叉編譯 GPIO helper
+
+```bash
+sudo apt update && sudo apt install -y build-essential gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+cd "$REPO/Lab04"
+aarch64-linux-gnu-g++ -std=c++11 -O2 -Wall -Wextra -pedantic C++/gpio.cpp -o /tmp/gpio
+scp /tmp/gpio "$TX2_USER@$TX2_IP:~/Lab04/C++/gpio"
+```
+
+### 4. 在 TX2 編譯並啟動 GPIO 伺服器
+
+在 **TX2 SSH 終端機**執行；先停止其他 Lab 的 GPIO 程式。TX2 缺少工具時才安裝
+
+```bash
+sudo apt update && sudo apt install -y nodejs npm g++ make
+node --version                       # 需要 Node.js 12+；套件太舊時勿升級 TX2 系統 / Kernel
+cd ~/Lab04
+make -C C++ clean                    # 在 TX2 本機編譯時執行
+make -C C++                          # 若已從 Ubuntu VM 傳入交叉編譯的 gpio，跳過以上兩行
+node server.js --hardware
+```
+
+保持伺服器終端機開啟；若 GPIO 初始化顯示 `Permission denied`，改用：
+
+```bash
+sudo env GPIO_PINS=255,428,427,398 node server.js --hardware
+```
+
+如果 TX2 啟用 UFW，在另一個 TX2 終端機放行連線：
+
+```bash
+sudo ufw status
+sudo ufw allow 22/tcp
+sudo ufw allow 8080/tcp
+```
+
+### GPIO 接線
+
+以下腳位沿用 Lab03 配置，非 Lab4 PDF 指定且尚未實機確認。請依實際接線核對 Linux GPIO 與實體 pin；輸出假設為寫入 1 亮、0 滅。
 
 | LED | Linux GPIO | 實體 pin | GND pin |
 | --- | --- | --- | --- |
@@ -37,49 +134,6 @@ Submit、啟動交替閃爍、啟動或停止流水燈會取消舊動畫；Chang
 | LED3 | 427 | 23 | 25 |
 | LED4 | 398 | 29 | 30 |
 
-先停止 Lab2 / Lab03 等其他 GPIO 控制程式。在 TX2 終端機依序執行：
-
-```bash
-cd ~/Lab04
-node --version
-g++ --version
-make -C C++ clean
-make -C C++
-node server.js --hardware
-```
-
-如 `node` 或 `g++` 未安裝，使用課程環境的套件管理方式安裝 `nodejs npm g++ make`；不要為此更新 TX2 的作業系統或 Kernel。Node 版本低於 12 時，先確認可與該 TX2 系統搭配的 Node 執行環境。
-
-若初始化顯示 `Permission denied`，可在課堂 TX2 的終端機使用：
-
-```bash
-sudo env GPIO_PINS=255,428,427,398 node server.js --hardware
-```
-
-密碼只在 TX2 終端機輸入。若 sudo 找不到 node，請以 `command -v node` 查出並改用完整 Node 路徑。若使用者已有 sysfs 寫入權限，直接使用一般使用者啟動即可。
-
-腳位不同時，用實際的四個 **Linux GPIO 數字**取代環境變數，順序為 LED1-4；不要填實體 pin 編號。初始化失敗會退出，硬體模式不會自動改成模擬模式。
-
-另開 TX2 終端機執行：
-
-```bash
-hostname -I
-```
-
-電腦與 TX2 需位於可互通的網路；在電腦瀏覽器開 `http://TX2的實際IP:8080`。確認右上角標籤是 `TX2 · GPIO`，再逐顆設定開關並按 Submit，接著驗收交替閃爍與流水燈。電腦端的 `localhost` 指向電腦本身。伺服器預設監聽 `0.0.0.0:8080`，供課堂區域網路使用，未提供帳號登入，請勿將此埠轉發到公共網路。
-
-## 前端視覺與操作
-
-依確認的 Figma 三卡片設計實作，以 **1980 × 1440** 為桌面設計基準：霧白背景、上方四張 LED 卡片，下方由左至右為 Submit／交替閃爍／流水燈。同一排功能卡片等高、上下邊緣對齊；Submit 較窄，接近正方形，但不鎖定長寬比，以免不同視窗寬度下無法對齊。色票集中於 `public/style.css` 的 CSS 變數；Submit 圖示以原創箭頭進入端點表示送出。
-
-字體透過 Google Fonts 載入 Noto Sans TC（300 / 400 / 500 / 700），無網路時使用 sans-serif。前端無額外套件，不固定鎖住瀏覽器視窗尺寸。視窗寬度不超過 900px 時，流水燈卡片移到下一排；不超過 560px 時，LED 卡片改成兩欄、下方三張功能卡片改為單欄，Submit 以橫向卡片呈現。
-
-- LED 與流水燈使用相同的滑動開關，ON 為紅色、OFF 為黑色；燈號與流水順序同步動畫。
-- 拉桿與數字欄雙向同步，支援鍵盤方向鍵及 Home / End，範圍 1–100。
-- 「完成」與進度條顯示伺服器最近一次交替閃爍的完成輪數／要求輪數；改動次數欄不會重啟動畫，需按 Mode_Shine 才套用新輪數。
-- Submit 一次提交四顆燈的設定；請求期間停用控制，避免重複送出。
-- 保留清楚的鍵盤焦點、開關狀態、減少動態效果偏好、連線與輸出錯誤提示。
-- 畫面以燈色、開關、進度與右上角模式標籤呈現狀態，不另外列出 LED1 ON／LED2 OFF 等重複文字；操作錯誤才顯示可見提示。
 
 ## 結構與設定
 
@@ -124,11 +178,6 @@ npm test
 測試涵蓋指定 LED、整組混合亮滅提交、1–100 範圍驗證、精確輪次、循環反轉、模式切換、舊計時器、同時操作、GPIO 錯誤與重試、HTTP/API 驗證、C++ 編譯與 `execFile` 寫入暫存 sysfs。測試需要 `make` 與 C++ 編譯器，會在本機產生 `C++/gpio`；上 TX2 前仍需 clean 後重編。
 
 `npm test` 不會驗證瀏覽器排版與互動。修改前端後，另外在模擬模式檢查：
-
-1. 以 1980 × 1440 及一般桌面寬度開啟頁面，確認下方三張卡片上下對齊；窄螢幕重排後沒有橫向溢出。
-2. 切換 LED1／LED3：開關與燈色立即變紅、出現紅點；等待背景更新後仍保留預覽。按 Submit 後紅點消失，重新整理仍顯示已送出的亮滅設定。
-3. 拉桿分別移到 1 與 100，確認數字欄同步；直接輸入 5，確認拉桿同步，再執行 Mode_Shine，確認進度完成且四燈全滅。
-4. 開啟流水燈，確認方向按鈕啟用、燈號循環；反轉後箭頭與下一顆燈的方向改變；關閉後全滅，方向按鈕停用。
 
 暫存 sysfs 是一般檔案，只驗證參數與寫入流程，無法驗證 TX2 pinmux、Linux sysfs 驅動、GPIO 電壓、接線、實際 LED、真實網路或權限。`GPIO_SYSFS_ROOT` 僅供測試替換路徑，實機不要設定。
 
