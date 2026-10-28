@@ -1,0 +1,290 @@
+#!/usr/bin/env python3
+"""Run with python3 tests/test_lab5. No target hardware or third-party packages."""
+import argparse
+import io
+import subprocess
+import sys
+import tempfile
+import time
+import types
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+import light_control as light
+import security_snapshot as security
+
+
+class FakeCamera:
+    suffix = ".test.txt"
+
+    def __init__(self, fail=None):
+        self.fail = fail
+        self.opened = False
+        self.closed = False
+        self.saved = []
+
+    def open(self):
+        self.opened = True
+        if self.fail == "open":
+            raise RuntimeError("open failure")
+
+    def read(self):
+        time.sleep(0.001)
+        if self.fail == "read":
+            raise RuntimeError("read failure")
+        return "TEST FRAME"
+
+    def save(self, path, frame):
+        if self.fail == "save":
+            raise OSError("disk failure")
+        path.write_text(frame)
+        self.saved.append(path)
+
+    def close(self):
+        self.closed = True
+
+
+class RecordingIO(light.SimulatedIO):
+    def __init__(self, values):
+        super().__init__(values)
+        self.outputs = []
+
+    def set_leds(self, a, b):
+        self.outputs.append((bool(a), bool(b)))
+        self.states = (bool(a), bool(b))
+
+
+class LabTests(unittest.TestCase):
+    def test_full_adc_range_and_all_channels(self):
+        for channel in range(8):
+            self.assertEqual(light.adc_command(channel), [1, (8 + channel) << 4, 0])
+        for value in range(1024):
+            self.assertEqual(light.decode_adc([255, 0xFC | (value >> 8), value & 255]), value)
+        for channel in [-1, 8]:
+            with self.assertRaises(ValueError):
+                light.adc_command(channel)
+        with self.assertRaises(RuntimeError):
+            light.decode_adc([0, 0])
+
+    def test_threshold_hysteresis(self):
+        on = False
+        result = []
+        for value in [300, 599, 600, 550, 451, 450, 500]:
+            on = light.threshold_state(value, 600, 450, on)
+            result.append(on)
+        self.assertEqual(result, [False, False, True, True, True, False, False])
+
+    def test_frozen_baseline_and_boundaries(self):
+        state = security.AlarmState(150)
+        self.assertEqual(state.update(300)[3], None)
+        self.assertEqual(state.update(450)[3], None)  # equality does not trigger
+        self.assertEqual(state.update(800)[3], "trigger")
+        self.assertEqual(state.baseline, 450)
+        for value in [810, 815, 800, 600]:
+            self.assertIsNone(state.update(value)[3])
+            self.assertEqual(state.baseline, 450)
+        self.assertEqual(state.update(599)[3], "reset")
+        self.assertFalse(state.active)
+
+    def test_negative_delta_and_rearming(self):
+        state = security.AlarmState(100)
+        state.update(800)
+        self.assertEqual(state.update(200)[3], "trigger")
+        self.assertEqual(state.update(810)[3], "reset")
+        self.assertEqual(state.update(300)[3], "trigger")
+        self.assertEqual(state.baseline, 810)
+
+    def test_initial_three_shots_before_recovery(self):
+        state = security.AlarmState(150)
+        state.update(300)
+        state.update(800)
+        self.assertIsNone(state.update(305, initial_burst_done=False)[3])
+        self.assertTrue(state.active)
+        self.assertEqual(state.update(305, initial_burst_done=True)[3], "reset")
+
+    def test_pipeline_defaults_and_parameter_order(self):
+        pipeline = security.gstreamer_pipeline()
+        self.assertIn("sensor-id=0", pipeline)
+        self.assertIn("width=(int)1280, height=(int)720", pipeline)
+        self.assertIn("framerate=(fraction)30/1", pipeline)
+        self.assertIn("flip-method=0", pipeline)
+        pipeline = security.gstreamer_pipeline(2, 1920, 1080, 640, 480, 60, 3)
+        self.assertIn("sensor-id=2", pipeline)
+        self.assertIn("width=(int)1920, height=(int)1080", pipeline)
+        self.assertIn("width=(int)640, height=(int)480", pipeline)
+        self.assertIn("framerate=(fraction)60/1", pipeline)
+        self.assertIn("flip-method=3", pipeline)
+        self.assertTrue(pipeline.endswith("appsink max-buffers=1 drop=true sync=false"))
+
+    def test_session_continues_past_first_burst_and_releases(self):
+        with tempfile.TemporaryDirectory() as tmp, redirect_stdout(io.StringIO()):
+            camera = FakeCamera()
+            session = security.CaptureSession(camera, tmp, .005, .005, .001)
+            session.start()
+            deadline = time.monotonic() + 2
+            while session.bursts < 2 and time.monotonic() < deadline:
+                session.check()
+                time.sleep(.002)
+            session.stop()
+            self.assertGreaterEqual(session.photos, 6)
+            self.assertTrue(session.first_burst_done.is_set())
+            self.assertTrue(camera.closed)
+            self.assertFalse(session.thread.is_alive())
+            self.assertEqual(len(set(camera.saved)), len(camera.saved))
+            self.assertTrue(all(path.exists() for path in camera.saved))
+            self.assertIn(time.strftime("%Y-%m-%d"), str(session.directory))
+
+    def test_camera_failures_propagate_and_release(self):
+        for failure in ["open", "read", "save"]:
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as tmp:
+                with redirect_stdout(io.StringIO()):
+                    camera = FakeCamera(failure)
+                    session = security.CaptureSession(camera, tmp, .001, .001, .001)
+                    session.start()
+                    self.assertTrue(session.failed.wait(2))
+                    with self.assertRaisesRegex(RuntimeError, "capture session failed"):
+                        session.stop()
+                    self.assertTrue(camera.closed)
+
+    def test_monitor_keeps_sampling_blinks_resets_and_rearms(self):
+        # Two independent sustained events, with stable abnormal samples in each.
+        values = [300, 305] + [800] * 25 + [310] * 12 + [800] * 25 + [315] * 12
+        with tempfile.TemporaryDirectory() as tmp:
+            args = argparse.Namespace(change_threshold=150, output=tmp, shot_interval=.003,
+                                      burst_pause=.004, camera_warmup=.001,
+                                      max_samples=len(values), interval=.003, blink_interval=.004)
+            cameras = []
+            def factory():
+                camera = FakeCamera()
+                cameras.append(camera)
+                return camera
+            device = RecordingIO(values)
+            output = io.StringIO()
+            with redirect_stdout(output):
+                security.run_monitor(args, device, factory)
+            self.assertEqual(device.index, len(values))
+            self.assertEqual(len(cameras), 2)
+            self.assertTrue(all(c.closed and len(c.saved) >= 6 for c in cameras))
+            self.assertEqual(output.getvalue().count("SYSTEM_RESET"), 2)
+            self.assertIn((True, False), device.outputs)
+            self.assertIn((False, True), device.outputs)
+            self.assertNotIn((True, True), device.outputs)
+            self.assertEqual(device.states, (False, False))
+
+    def test_monitor_error_cleans_up_leds(self):
+        with tempfile.TemporaryDirectory() as tmp, redirect_stdout(io.StringIO()):
+            args = argparse.Namespace(change_threshold=150, output=tmp, shot_interval=.003,
+                                      burst_pause=.004, camera_warmup=.001,
+                                      max_samples=30, interval=.003, blink_interval=.004)
+            device = RecordingIO([300, 800])
+            camera = FakeCamera("save")
+            with self.assertRaisesRegex(RuntimeError, "capture session failed"):
+                security.run_monitor(args, device, lambda: camera)
+            self.assertEqual(device.states, (False, False))
+            self.assertTrue(camera.closed)
+
+    def test_spidev_transaction(self):
+        calls = []
+        class FakeSpi:
+            def xfer2(self, data):
+                calls.append(data)
+                return [0, 3, 255]
+        device = light.HardwareIO(argparse.Namespace(channel=7))
+        device.spi = FakeSpi()
+        self.assertEqual(device.read_adc(), 1023)
+        self.assertEqual(calls, [[1, 240, 0]])
+
+    def test_bitbang_packet_edges_and_cs(self):
+        class FakeGPIO:
+            LOW, HIGH = 0, 1
+            def __init__(self):
+                self.writes = []
+                self.bits = iter([int(x) for x in "000000000000001011010101"])
+            def output(self, pin, value):
+                self.writes.append((pin, value))
+            def input(self, pin):
+                return next(self.bits)
+        device = light.HardwareIO(argparse.Namespace(channel=0))
+        device.gpio = FakeGPIO()
+        self.assertEqual(device.read_adc(), 725)
+        self.assertEqual([value for pin, value in device.gpio.writes if pin == 24], [0, 1])
+        self.assertEqual(sum(pin == 23 and value == 1 for pin, value in device.gpio.writes), 24)
+        sent = [value for pin, value in device.gpio.writes if pin == 19]
+        self.assertEqual(sent, [int(x) for x in "000000011000000000000000"])
+
+    def test_gpio_collision_rejected_before_import(self):
+        for pins in [[21, 23], [15, 15], [1, 29], [16, 29], [36, 29]]:
+            with self.assertRaises(ValueError):
+                light.HardwareIO(argparse.Namespace(led_pins=pins)).__enter__()
+
+    def test_active_low_levels(self):
+        device = light.HardwareIO(argparse.Namespace(active_low=True))
+        self.assertEqual(device._level(True), 0)
+        self.assertEqual(device._level(False), 1)
+
+    def test_partial_initialization_releases_every_resource(self):
+        calls = []
+        class FakeGPIO:
+            BOARD, OUT = 10, 1
+            @staticmethod
+            def setmode(mode):
+                calls.append("mode")
+            @staticmethod
+            def setup(pin, mode, initial):
+                calls.append(("setup", pin, initial))
+            @staticmethod
+            def output(pin, level):
+                calls.append(("output", pin, level))
+            @staticmethod
+            def cleanup(pins):
+                calls.append(("cleanup", tuple(pins)))
+        class FakeSpi:
+            def open(self, bus, device):
+                raise OSError("no SPI device")
+            def close(self):
+                calls.append("spi.close")
+        args = argparse.Namespace(led_pins=[15, 29], active_low=False, spi_backend="spidev",
+                                  spi_bus=0, spi_device=0)
+        jetson = types.ModuleType("Jetson")
+        jetson.GPIO = FakeGPIO
+        spidev = argparse.Namespace(SpiDev=FakeSpi)
+        with patch.dict(sys.modules, {"Jetson": jetson, "Jetson.GPIO": FakeGPIO, "spidev": spidev}):
+            with self.assertRaisesRegex(OSError, "no SPI device"):
+                light.HardwareIO(args).__enter__()
+        self.assertIn("spi.close", calls)
+        self.assertIn(("output", 15, 0), calls)
+        self.assertIn(("output", 29, 0), calls)
+        self.assertIn(("cleanup", (15, 29)), calls)
+
+    def test_opencv_save_failure_is_not_success(self):
+        camera = security.OpenCVCamera(None)
+        camera.cv2 = argparse.Namespace(imwrite=lambda path, frame: False)
+        with self.assertRaisesRegex(RuntimeError, "image write failed"):
+            camera.save(Path("unused.jpg"), object())
+
+    def test_cli_simulation_without_hardware_packages(self):
+        proc = subprocess.run([sys.executable, str(ROOT / "light_control.py"),
+                               "--samples", "100,700,500,400", "--interval", ".001",
+                               "--max-samples", "4"], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              universal_newlines=True, timeout=5)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("MODE=SIMULATION", proc.stdout)
+        self.assertIn("ADC=500 LED1=ON LED2=ON", proc.stdout)
+        self.assertIn("ADC=400 LED1=OFF LED2=OFF", proc.stdout)
+
+    def test_cli_invalid_settings(self):
+        for script, options in [("light_control.py", ["--samples", "1024"]),
+                                ("light_control.py", ["--interval", "nan"]),
+                                ("light_control.py", ["--off-threshold", "700"]),
+                                ("security_snapshot.py", ["--change-threshold", "0"])]:
+            proc = subprocess.run([sys.executable, str(ROOT / script)] + options,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
+            self.assertEqual(proc.returncode, 2)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
