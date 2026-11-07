@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050a18">
+<title>微處理機模擬題</title>
+<style>
+:root{color-scheme:dark;--bg:#050a18;--bar:#070d1c;--panel:#10192b;--raised:#172236;--line:#243249;--edge:#364760;--fg:#eef4fb;--muted:#a4b4ca;--accent:#dafa7a;--brand:#dafa7a;--on-brand:#182208;--selection:#27321c;--good:#70e2b4;--good-bg:#112e2e;--bad:#ff9aa9;--bad-bg:#351c30;--track:#23324a;--shadow:#dafa7a1c}
+:root[data-theme=light]{color-scheme:light;--bg:#edf3fa;--bar:#f7fbff;--panel:#fff;--raised:#e6eef7;--line:#cfdaea;--edge:#9db0c8;--fg:#142239;--muted:#495e7a;--accent:#46590f;--brand:#dafa7a;--on-brand:#182208;--selection:#eef7ce;--good:#106b4c;--good-bg:#dcf4e7;--bad:#9f183c;--bad-bg:#fce5ec;--track:#d4e0ee;--shadow:#46590f1a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif}
+button,input{font:inherit}
+button{cursor:pointer;color:inherit}
+button:disabled{cursor:default;opacity:.43}
+button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+button{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 13px}
+button:not(:disabled):hover{border-color:var(--accent)}
+button[aria-pressed=true],.picked{border-color:var(--accent);background:var(--selection);color:var(--accent)}
+button.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand);font-weight:750;box-shadow:0 3px 0 var(--shadow);min-height:47px}
+button.primary:not(:disabled):hover{filter:brightness(1.1)}
+button.quiet{background:transparent}
+svg{width:17px;height:17px;vertical-align:-.2em;flex:none}
+.wrap{width:min(100% - 36px,864px);margin-inline:auto}
+.topbar{border-bottom:1px solid var(--line);background:var(--bar)}
+.topbar-inner{min-height:64px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand{display:inline-flex;align-items:center;gap:10px;border:0;background:none;padding:0;text-align:left;font-weight:750;white-space:nowrap}
+.brand:hover{color:var(--accent)}
+.brand-logo,.tile-icon{display:inline-grid;place-items:center;width:36px;height:36px;border-radius:11px;flex:none}
+.brand-logo{background:var(--brand);color:var(--on-brand);box-shadow:0 3px 0 var(--shadow)}
+.brand-logo svg,.tile-icon svg{width:19px;height:19px}
+.top-actions,.nav{display:flex;align-items:center;gap:5px}
+.nav{background:var(--panel);border-radius:12px;padding:4px}
+.nav button{display:flex;align-items:center;gap:5px;border-color:transparent;background:transparent;padding:5px 8px;color:var(--muted);font-size:.87rem;white-space:nowrap}
+.nav button[aria-current=page]{background:var(--raised);color:var(--fg)}
+.icon-button{display:grid;place-items:center;padding:8px;min-width:35px}
+main{padding:39px 0 32px}
+h1,h2,h3,p{margin:0}
+h1{font-size:clamp(1.8rem,5vw,2.3rem);line-height:1.2;margin:6px 0 8px;letter-spacing:-.035em}
+h2{font-size:1.07rem}
+h3{font-size:.97rem}
+.eyebrow{font-size:.77rem;font-weight:800;color:var(--accent);letter-spacing:.18em}
+.muted{color:var(--muted)}
+.small{font-size:.83rem}
+.intro{margin-bottom:17px}
+.panel,.shortcut,.metric{background:var(--panel);border:1px solid var(--line);border-radius:16px}
+.panel{padding:clamp(16px,3vw,24px)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.grow{flex:1}
+.wrap-row{flex-wrap:wrap}
+.inline{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.mode-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:15px}
+.mode{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;padding:16px;min-height:122px;border-radius:15px}
+.tile-icon{color:var(--muted);background:var(--raised);margin-bottom:5px}
+.mode[aria-pressed=true] .tile-icon{background:var(--brand);color:var(--on-brand)}
+.mode strong{color:var(--fg)}
+.setup-field{margin-top:22px}
+.setup-field h3{margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border-radius:999px;border-color:var(--edge);font-size:.82rem;padding:5px 11px}
+.count{padding:6px 14px;border-color:var(--edge)}
+.checkline{display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--muted);font-size:.88rem}
+input[type=checkbox],input[type=radio]{accent-color:var(--brand)}
+.start{width:100%;margin-top:21px}
+.shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.shortcut{display:flex;text-align:left;align-items:center;gap:13px;padding:14px 17px}
+.shortcut .tile-icon{margin:0;color:var(--accent);background:var(--selection)}
+.shortcut:first-child .tile-icon{color:var(--bad);background:var(--bad-bg)}
+.resume{margin-bottom:14px}
+.footer{padding:0 0 25px;text-align:center;color:var(--muted);font-size:.78rem}
+.text-button{border:0;background:none;color:var(--accent);padding:5px}
+.practice{width:min(100%,768px);margin-inline:auto}
+.practice-head{margin-bottom:14px}
+.practice-head .muted{font-size:.81rem}
+.progress{display:block;width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;appearance:none;background:var(--track);margin:0 0 18px}
+.progress::-webkit-progress-bar{background:var(--track)}
+.progress::-webkit-progress-value{background:var(--brand);border-radius:999px}
+.progress::-moz-progress-bar{background:var(--brand)}
+.practice-card{padding:clamp(16px,4vw,28px)}
+.badges{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:15px}
+.badge{padding:3px 10px;border-radius:999px;border:1px solid var(--edge);background:var(--raised);font-size:.77rem;color:var(--muted)}
+.badge.accent{color:var(--accent);background:var(--selection)}
+fieldset{min-inline-size:0;border:0;padding:0;margin:0}
+legend{padding:0;margin-bottom:19px;font-size:clamp(1.04rem,2.7vw,1.28rem);font-weight:750;overflow-wrap:anywhere}
+.option{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:13px;padding:12px 15px;min-height:57px;margin-top:9px;cursor:pointer;overflow-wrap:anywhere}
+.option:first-child{margin-top:0}
+.option:hover{border-color:var(--edge)}
+.option:has(input:checked:not(:disabled)){border-color:var(--accent);background:var(--selection)}
+.option input{position:absolute;width:1px;height:1px;opacity:0}
+.option:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.option:has(input:disabled){cursor:default}
+.letter{display:grid;place-items:center;flex:none;width:27px;height:27px;border:1px solid var(--line);border-radius:7px;background:var(--bg);font:750 .83rem ui-monospace,monospace}
+.option.correct,.q-jump.correct{color:var(--good);border-color:var(--good);background:var(--good-bg)}
+.option.wrong,.q-jump.wrong{color:var(--bad);border-color:var(--bad);background:var(--bad-bg)}
+.option span:nth-last-child(2){flex:1;min-width:0}
+.marker{font-weight:750;margin-left:auto}
+code{background:var(--bg);border:1px solid var(--line);color:var(--accent);border-radius:4px;padding:.06em .24em;font: .91em ui-monospace,SFMono-Regular,monospace;overflow-wrap:anywhere}
+.solution{border-top:1px solid var(--line);padding-top:12px;margin-top:18px}
+.solution p{margin:8px 0}
+.solution strong{color:var(--good)}
+.solution .wrong-text{color:var(--bad)}
+.practice-actions{display:flex;gap:10px;margin-top:14px}
+.practice-actions button:first-child{min-width:52px}
+.practice-actions .primary{flex:1}
+.jump-panel{margin-bottom:14px}
+.jump-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(38px,1fr));gap:6px;margin-top:8px}
+.q-jump{padding:4px;font-size:.82rem;min-height:32px}
+.q-jump[aria-current=step]{outline:2px solid var(--accent);outline-offset:1px}
+.section-stack>*+*{margin-top:12px}
+.empty{padding:34px 20px;text-align:center}
+.empty p{margin:6px 0 12px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.metric{padding:14px 16px}
+.metric strong{display:block;font-size:1.63rem;line-height:1.2;font-variant-numeric:tabular-nums;color:var(--accent);margin-bottom:5px}
+.stat-row{padding:11px 0;border-bottom:1px solid var(--line)}
+.stat-row:last-child{border-bottom:0;padding-bottom:0}
+.stat-row .progress{margin:6px 0 0}
+.list-row{padding:12px 0;border-top:1px solid var(--line)}
+.list-row:first-of-type{margin-top:8px}
+.list-row p{overflow-wrap:anywhere}
+.setting p{margin:.3em 0 .7em}
+.danger{color:var(--bad)}
+details{border-top:1px solid var(--line);padding:10px 0}
+summary{cursor:pointer;font-weight:650;overflow-wrap:anywhere}
+.library-options{padding-left:2em;margin:7px 0}
+.library-options li::marker{color:var(--muted)}
+noscript{display:block;margin:20px}
+#restart-dialog{width:min(100% - 28px,420px);color:var(--fg)}
+#restart-dialog::backdrop{background:#050a18bd}
+#restart-dialog p{margin:8px 0 18px}
+#restart-dialog .row{justify-content:flex-end;gap:8px}
+@media(max-width:620px){
+ .wrap{width:calc(100% - 28px)} main{padding-top:25px}
+ .mode-grid{grid-template-columns:1fr;gap:7px}
+ .mode{display:grid;grid-template-columns:34px 1fr;column-gap:10px;row-gap:0;min-height:0;padding:10px 12px}
+ .mode .tile-icon{grid-row:span 2;width:32px;height:32px;align-self:center;margin:0}
+ .nav button{padding:5px;font-size:.8rem}.nav button svg{display:none}.topbar-inner{min-height:57px}
+ .brand{gap:6px;font-size:.8rem}.brand-logo{width:30px;height:30px}
+ .shortcuts,.metrics{grid-template-columns:1fr 1fr}
+ .shortcut{padding:11px;gap:8px}
+ .shortcut .tile-icon{width:30px;height:30px}
+ .setup-field{margin-top:16px}
+}
+@media(max-width:359px){.topbar-inner{gap:6px}.brand{font-size:.76rem}.brand-logo{width:27px;height:27px}.top-actions{gap:2px}.nav button{font-size:.77rem;padding:4px}.topbar .icon-button{display:none}.shortcuts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="wrap topbar-inner" id="navigation"></div></header>
+<main class="wrap" id="app"></main>
+<footer class="wrap footer" id="storage-note"></footer>
+<dialog id="restart-dialog" class="panel" aria-labelledby="restart-title" aria-describedby="restart-note">
+  <h2 id="restart-title">開始新一輪？</h2>
+  <p id="restart-note" class="muted">新一輪會取代上次的續練位置。已提交的作答紀錄會保留。</p>
+  <div class="row wrap-row">
+    <button type="button" value="cancel">取消</button>
+    <button type="button" value="start" class="primary">開始新一輪</button>
+  </div>
+</dialog>
+<noscript>請啟用 JavaScript 以開啟離線題庫。</noscript>
+<script type="application/json" id="quiz-data">{"questions":[{"id":1,"topic":1,"prompt":"在 Apple Silicon Mac 上用系統預設的 \u003ccode>g++\u003c/code> 建置 C++，得到 arm64 Mach-O。TX2 也使用 ARM64，部署前應怎麼做？","options":["改用以 AArch64 Linux 為目標的工具鏈重建","只在 TX2 上執行 \u003ccode>chmod u+x\u003c/code>","將副檔名改成 \u003ccode>.elf\u003c/code>","直接傳送，因為 CPU 指令集一致"],"correct":0,"explanation":"TX2 的 Linux 載入器需要相容的 ELF 格式和 ABI。macOS 的 Mach-O 即使使用同一類 CPU 指令，作業系統的載入方式仍不同。改名或增加執行權限都不會改變二進位格式。","source":"複習筆記 · Lab 1 §2 Host、Target 與 toolchain"},{"id":2,"topic":1,"prompt":"執行 \u003ccode>aarch64-linux-gnu-g++ -c main.cpp -o main.o\u003c/code> 後，下一步要如何得到可執行檔？","options":["把 \u003ccode>main.o\u003c/code> 改名成 \u003ccode>main\u003c/code>","執行 \u003ccode>chmod +x main.o\u003c/code> 以完成組譯","把 \u003ccode>main.o\u003c/code> 重新送入前處理器","將 \u003ccode>main.o\u003c/code> 和其他必要目的檔、函式庫交給 linker"],"correct":3,"explanation":"\u003ccode>-c\u003c/code> 讓編譯流程停在目的檔，尚未把外部符號和其他目的檔接在一起。連結階段解析符號並產生可執行檔。檔名和權限都無法補做這個步驟。","source":"複習筆記 · Lab 1 §3 編譯流程與檔案角色"},{"id":3,"topic":1,"prompt":"規則為 \u003ccode>sort.o: sort.cpp shape.h\u003c/code>。recipe 裡的 \u003ccode>$@\u003c/code> 與 \u003ccode>$&lt;\u003c/code> 分別展開成什麼？","options":["\u003ccode>sort.o\u003c/code>、\u003ccode>shape.h\u003c/code>","\u003ccode>sort.cpp\u003c/code>、\u003ccode>sort.o\u003c/code>","\u003ccode>sort.o\u003c/code>、\u003ccode>sort.cpp\u003c/code>","\u003ccode>sort.cpp\u003c/code>、\u003ccode>shape.h\u003c/code>"],"correct":2,"explanation":"\u003ccode>$@\u003c/code> 指目前 target，\u003ccode>$&lt;\u003c/code> 指第一個 prerequisite。以 \u003ccode>-c $&lt; -o $@\u003c/code> 執行時，會讀 \u003ccode>sort.cpp\u003c/code> 並寫出 \u003ccode>sort.o\u003c/code>。第二個 prerequisite \u003ccode>shape.h\u003c/code> 仍會影響重建判斷。","source":"複習筆記 · Lab 1 §4 Makefile 必懂語法"},{"id":4,"topic":1,"prompt":"已有 \u003ccode>app: main.o sort.o\u003c/code>，目前兩個目的檔都存在，只有 \u003ccode>sort.o\u003c/code> 比 \u003ccode>app\u003c/code> 新。recipe 中哪個變數最適合帶入完整連結清單？","options":["\u003ccode>$^\u003c/code>","\u003ccode>$?\u003c/code>","\u003ccode>$@\u003c/code>","\u003ccode>$&lt;\u003c/code>"],"correct":0,"explanation":"\u003ccode>$^\u003c/code> 展開為全部 prerequisites，所以能連結 \u003ccode>main.o sort.o\u003c/code>。\u003ccode>$?\u003c/code> 此時只會提供較新的 \u003ccode>sort.o\u003c/code>，\u003ccode>$&lt;\u003c/code> 只提供第一個，\u003ccode>$@\u003c/code> 則是輸出的 \u003ccode>app\u003c/code>。","source":"複習筆記 · Lab 1 §4 Makefile 必懂語法"},{"id":5,"topic":1,"prompt":"\u003ccode>main.cpp\u003c/code> include \u003ccode>common.h\u003c/code>，但 Makefile 只有 \u003ccode>main.o: main.cpp\u003c/code>。只改標頭後執行 make，最直接的修正是什麼？","options":["把 \u003ccode>common.h\u003c/code> 放到 \u003ccode>clean\u003c/code> 的刪除清單","把 \u003ccode>common.h\u003c/code> 加入依賴，或納入編譯器產生的 \u003ccode>.d\u003c/code>","把 \u003ccode>main.o\u003c/code> 改成 phony target","把連結指令的 \u003ccode>$^\u003c/code> 改成 \u003ccode>$@\u003c/code>"],"correct":1,"explanation":"make 依賴規則上看得到的檔案和時間戳來決定重建。把標頭列入依賴，或以 \u003ccode>-MMD\u003c/code> 產生並載入 \u003ccode>.d\u003c/code>，才能在標頭更新後精確重編受影響的目的檔。","source":"複習筆記 · Lab 1 §4 Makefile 必懂語法"},{"id":6,"topic":1,"prompt":"專案剛好有一個叫 \u003ccode>clean\u003c/code> 的檔案，\u003ccode>make clean\u003c/code> 因此判定無須執行。怎麼處理最合適？","options":["把 \u003ccode>clean\u003c/code> 放在第一條 target 規則","把 \u003ccode>clean\u003c/code> 改成 \u003ccode>clean.o\u003c/code>","在刪除命令加上 \u003ccode>-f\u003c/code>","宣告 \u003ccode>.PHONY: clean\u003c/code>"],"correct":3,"explanation":"\u003ccode>clean\u003c/code> 是要執行的動作。標成 phony 後，make 在要求該 target 時會執行 recipe，不以同名檔案的時間戳判斷。刪除命令的 \u003ccode>-f\u003c/code> 只有在 recipe 已執行時才會起作用。","source":"複習筆記 · Lab 1 §4 Makefile 必懂語法"},{"id":7,"topic":1,"prompt":"Makefile 的編譯命令前用了四個空格，執行時顯示 \u003ccode>missing separator\u003c/code>。按課堂預設語法，首先該修正哪裡？","options":["把 recipe 行前的空格改成 Tab","在來源檔後面加上 \u003ccode>-std=c++11\u003c/code>","把 target 後的冒號換成等號","把執行檔放到 TX2 的家目錄"],"correct":0,"explanation":"預設 Makefile 語法用 Tab 標記 recipe 行。這個錯誤發生於 make 解析規則時，編譯器還沒開始執行。先修正縮排，再處理 C++ 編譯錯誤。","source":"複習筆記 · Lab 1 §6 易錯點與除錯順序"},{"id":8,"topic":1,"prompt":"編譯各個 \u003ccode>.o\u003c/code> 都成功，最後卻出現 \u003ccode>undefined reference to area()\u003c/code>。第一步最適合查什麼？","options":["實作 \u003ccode>area()\u003c/code> 的目的檔是否進入連結清單，宣告與定義是否一致","\u003ccode>area()\u003c/code> 所在檔案是否有執行權限","主程式是否以 \u003ccode>sudo\u003c/code> 啟動","TX2 的 SSH port 是否開啟"],"correct":0,"explanation":"連結器找不到呼叫所需的符號時會報 undefined reference。先查實作所在目的檔及函式簽名，例如參數型別和 namespace，再查連結順序或函式庫。","source":"複習筆記 · Lab 1 §6 易錯點與除錯順序"},{"id":9,"topic":1,"prompt":"從開發機將 \u003ccode>tx2_exe\u003c/code> 傳到 TX2 使用者 \u003ccode>nvidia\u003c/code> 的家目錄，哪個指令方向正確？","options":["\u003ccode>scp ./tx2_exe ~/nvidia@192.168.55.1\u003c/code>","\u003ccode>scp nvidia@192.168.55.1:~/tx2_exe ./\u003c/code>","\u003ccode>scp ./tx2_exe nvidia@192.168.55.1:~/\u003c/code>","\u003ccode>ssh nvidia@192.168.55.1 ./tx2_exe\u003c/code>"],"correct":2,"explanation":"SCP 的第一個路徑是來源，第二個是目的地。冒號前的 \u003ccode>user@host\u003c/code> 代表遠端端點。SSH 可以遠端執行已有的檔案，這個用法不會上傳本機檔案。","source":"複習筆記 · Lab 1 §5 完整操作流程"},{"id":10,"topic":1,"prompt":"SCP 傳輸完成，TX2 執行 \u003ccode>./tx2_exe\u003c/code> 回報 \u003ccode>Exec format error\u003c/code>。哪組檢查最直接？","options":["用 \u003ccode>dmesg\u003c/code> 找 GPIO 編號，再重設方向","用 \u003ccode>ls -l\u003c/code> 查權限，再一律改成 777","用 \u003ccode>pwd\u003c/code> 確認路徑，再改檔名","用 \u003ccode>file tx2_exe\u003c/code> 查產物，用 \u003ccode>uname -m\u003c/code> 查 TX2 架構"],"correct":3,"explanation":"\u003ccode>file\u003c/code> 描述該二進位產物，\u003ccode>uname -m\u003c/code> 描述目前機器。把兩者對照可找出把 x86-64 ELF 或 Mach-O 誤傳到 AArch64 Linux 的情況。SCP 只負責傳輸位元組。","source":"複習筆記 · Lab 1 §6 易錯點與除錯順序"},{"id":11,"topic":1,"prompt":"換領 TX2 後沿用相同 IP，SSH 提示 host key changed。應先做什麼？","options":["直接在所有 SSH 連線停用 host key 檢查","重新用同一套 Makefile 編譯","重設 TX2 的使用者密碼","用可信方式確認新機台的指紋，確認後才移除舊紀錄"],"correct":3,"explanation":"host key 用來辨認 SSH 伺服器。同一個 IP 可以對到不同設備，換板確實可能產生這個警告。先確認新指紋，再更新該 IP 的舊紀錄，才能維持設備身分驗證。","source":"複習筆記 · Lab 1 §5 完整操作流程"},{"id":12,"topic":1,"prompt":"Lab 1 已提供形狀計算與排序原始碼，哪個工作最符合原實驗目標？","options":["將排序規則改為降冪以驗證連結結果","自行寫 Makefile 建出目標執行檔，傳至 TX2 並比對執行結果","把每種形狀改寫成 shell script，在主機直接執行","只完成 \u003ccode>clean\u003c/code>，以移除原始碼作為驗收"],"correct":1,"explanation":"實驗用現成形狀程式練習相依規則、跨平台工具鏈與遠端執行。驗收會涉及 \u003ccode>all\u003c/code>、\u003ccode>clean\u003c/code>、變數、自動變數以及 TX2 執行。修改演算法無法取代這些步驟。","source":"複習筆記 · Lab 1 §1 原教材要求"},{"id":13,"topic":2,"prompt":"依 Lecture 2 的 TX2 對照，J21 實體 Pin 15 對應 \u003ccode>gpio255\u003c/code>。若程式把 LED1 接在這個腳位，寫入 \u003ccode>export\u003c/code> 的數字應為何？","options":["1","254","255","15"],"correct":2,"explanation":"\u003ccode>export\u003c/code> 接收 sysfs GPIO number，因此寫入 255。15 是接頭位置，LED1 是程式自己定義的名稱。三種標識要靠對照表連接起來。","source":"複習筆記 · Lab 2 §2 三層編號一定分清楚"},{"id":14,"topic":2,"prompt":"假設 \u003ccode>gpio255\u003c/code> 尚未 export 且介面可用，要將它設成輸出高電位，哪個順序正確？","options":["對 \u003ccode>export\u003c/code> 寫 out → 對 \u003ccode>value\u003c/code> 寫 255 → 設 \u003ccode>direction=1\u003c/code>","對 \u003ccode>export\u003c/code> 寫 255 → 對 \u003ccode>direction\u003c/code> 寫 out → 對 \u003ccode>value\u003c/code> 寫 1","先寫 \u003ccode>value=1\u003c/code> → 對 \u003ccode>export\u003c/code> 寫 255 → 設 \u003ccode>direction=in\u003c/code>","對 \u003ccode>unexport\u003c/code> 寫 255 → 對 \u003ccode>direction\u003c/code> 寫 out → 對 \u003ccode>value\u003c/code> 寫 1"],"correct":1,"explanation":"先把 GPIO 暴露到 sysfs，才有該腳位目錄可設定。寫 out 建立輸出方向，接著寫 1 設定高電位。unexport 則移除供使用者空間操作的介面。","source":"複習筆記 · Lab 2 §3 sysfs 的四個操作"},{"id":15,"topic":2,"prompt":"一般使用者執行 \u003ccode>sudo echo 1 &gt; /sys/class/gpio/gpio255/value\u003c/code> 仍收到權限錯誤。在允許以 sudo 寫此 GPIO 的前提下，哪個解法對準問題？","options":["在路徑末尾多加一個斜線","把 \u003ccode>echo\u003c/code> 改成 \u003ccode>printf\u003c/code>，保留原本重導向","\u003ccode>echo 1 | sudo tee /sys/class/gpio/gpio255/value\u003c/code>","將 \u003ccode>value\u003c/code> 改成 \u003ccode>direction\u003c/code>"],"correct":2,"explanation":"\u003ccode>&gt;\u003c/code> 由目前 shell 開啟目標檔案。sudo 只提升 echo 的身分，沒有提升 shell 的重導向權限。讓具備權限的 tee 接收標準輸入並寫入，才會改變實際寫檔者。","source":"複習筆記 · Lab 2 §3 sysfs 的四個操作"},{"id":16,"topic":2,"prompt":"執行 \u003ccode>./L2Program Mode_Shine 5\u003c/code> 時，\u003ccode>argc\u003c/code> 和 \u003ccode>argv[2]\u003c/code> 的內容是什麼？","options":["3 和整數 \u003ccode>5\u003c/code>","2 和字串 \u003ccode>&quot;5&quot;\u003c/code>","2 和字串 \u003ccode>&quot;Mode_Shine&quot;\u003c/code>","3 和字串 \u003ccode>&quot;5&quot;\u003c/code>"],"correct":3,"explanation":"\u003ccode>argv[0]\u003c/code> 存程式名稱或路徑，接著才是模式和次數。命令列參數以字串傳入，程式還需要自行解析 \u003ccode>&quot;5&quot;\u003c/code> 並驗證範圍。","source":"複習筆記 · Lab 2 §4 argv 怎麼變成 LED 操作？"},{"id":17,"topic":2,"prompt":"程式剛啟動時只有 \u003ccode>argv[0]\u003c/code>，卻先拿 \u003ccode>argv[2]\u003c/code> 建立字串。哪個修改能防止這類問題？","options":["發現燈沒亮後再讀 argc","先呼叫 \u003ccode>export\u003c/code>，等 sysfs 建好再讀 argv","先驗證 argc，再依模式讀取必需的 argv","把所有參數比對改成整數相等"],"correct":2,"explanation":"命令列缺少參數時，不能假設索引 2 有可讀字串。應先檢查參數數量，再依模式驗證 LED、on/off 或次數。這個檢查應早於硬體操作，避免無效命令改變輸出。","source":"複習筆記 · Lab 2 §4 argv 怎麼變成 LED 操作？"},{"id":18,"topic":2,"prompt":"目前四燈狀態為 \u003ccode>[亮, 滅, 亮, 滅]\u003c/code>，Lab 2 執行 \u003ccode>LED2 on\u003c/code> 後應得到哪種結果？","options":["\u003ccode>[亮, 滅, 亮, 滅]\u003c/code>","\u003ccode>[亮, 亮, 亮, 滅]\u003c/code>","\u003ccode>[亮, 亮, 滅, 滅]\u003c/code>","\u003ccode>[滅, 亮, 滅, 滅]\u003c/code>"],"correct":1,"explanation":"Lab 2 的單燈命令只更新指定腳位。LED2 從滅改亮，LED1 和 LED3 保持亮，LED4 保持滅。清空全部輸出再設 LED2 會破壞這個要求。","source":"複習筆記 · Lab 2 §1 原教材要求與行為邊界"},{"id":19,"topic":2,"prompt":"兩組閃爍中，第一組為 LED1、LED2，第二組為 LED3、LED4。以 1 表示亮，哪兩個四燈狀態應交替？","options":["\u003ccode>1010\u003c/code> 與 \u003ccode>0101\u003c/code>","\u003ccode>1100\u003c/code> 與 \u003ccode>0011\u003c/code>","\u003ccode>1000\u003c/code> 與 \u003ccode>0100\u003c/code>","\u003ccode>1111\u003c/code> 與 \u003ccode>0000\u003c/code>"],"correct":1,"explanation":"先依原要求把相鄰兩顆分成一組。第一組亮時是 \u003ccode>1100\u003c/code>，第二組亮時是 \u003ccode>0011\u003c/code>。兩個狀態間需保留可觀察的時間間隔。","source":"複習筆記 · Lab 2 §1 原教材要求與行為邊界"},{"id":20,"topic":2,"prompt":"程式剛收到指令，便把四個 GPIO 全設為 0 作為初始化。若要保留 Lab 2 單燈行為，哪個調整較合理？","options":["分開準備資源和設定輸出，單燈命令只寫指定腳位","每次執行前先保存 LED 名稱，仍然將四燈歸零","先把四燈全設為 1，再將指定燈設成目標值","程式結束時才一次改成全滅"],"correct":0,"explanation":"「其他燈不變」約束的是整個命令的輸出行為。初始化或收尾全改輸出都會破壞它。將 GPIO 資源準備和真正寫入分開，就能把變更限制在指定腳位。","source":"複習筆記 · Lab 2 §5 實作驗證與除錯"},{"id":21,"topic":2,"prompt":"\u003ccode>gpio255/value\u003c/code> 已讀回 1，實體 LED 卻沒亮。哪個驗證最能把軟體設定與接線分開？","options":["先增加命令列 argv 的數量","把 GPIO 讀回值 1 當作 LED 已亮的證據","把 \u003ccode>value\u003c/code> 的內容改寫為字串 \u003ccode>on\u003c/code>","確認 Pin 1 方向及映射，量測實際輸出並檢查極性、限流、共地"],"correct":3,"explanation":"sysfs 回報的是軟體可讀的邏輯狀態，LED 是否有電流還取決於實際接線。量測對應腳位並檢查極性、限流電阻和共地，可區分程式設定與硬體路徑。","source":"複習筆記 · Lab 2 §5 實作驗證與除錯"},{"id":22,"topic":2,"prompt":"確認只由本程式使用的 GPIO 已完成操作，現在要移除它的 sysfs 介面。應寫入哪裡？","options":["向 \u003ccode>gpioN/direction\u003c/code> 寫入 \u003ccode>close\u003c/code>","向 \u003ccode>gpioN/value\u003c/code> 寫入 GPIO number","將 \u003ccode>gpioN\u003c/code> 當成普通目錄遞迴刪除","向 \u003ccode>/sys/class/gpio/unexport\u003c/code> 寫入 GPIO number"],"correct":3,"explanation":"sysfs 目錄由核心提供，\u003ccode>unexport\u003c/code> 是移除已 export GPIO 介面的操作。若還要保證 LED 最終熄滅，應先依接線設定適當輸出，再釋放本程式所管理的腳位。","source":"複習筆記 · Lab 2 §3 sysfs 的四個操作"},{"id":23,"topic":2,"prompt":"插上彩虹排線後，兩排腳位在觀察方向上可能與原接頭圖相反。可靠的確認方式為何？","options":["直接用排線第一種顏色當作 LED1","把所有奇數 GPIO number 改成偶數","先定位 Pin 1 和 GND，再以接頭及轉接板對照表確認","把排線另一頭第一個位置固定當作 Pin 40"],"correct":2,"explanation":"實體方向是映射的第一步。依 Pin 1、GND 和標示找出正確位置，再對照 sysfs number。排線顏色與 Linux GPIO 編號的奇偶沒有通用關係。","source":"複習筆記 · Lab 2 §2 三層編號一定分清楚"},{"id":24,"topic":2,"prompt":"在較新的 Linux 環境看見 \u003ccode>/dev/gpiochip0\u003c/code>，沒有舊課程的 \u003ccode>/sys/class/gpio/export\u003c/code>。哪個說法合理？","options":["先建立普通檔案 \u003ccode>/sys/class/gpio/export\u003c/code> 以啟用驅動","把 255 寫入 \u003ccode>/dev/gpiochip0/export\u003c/code> 就能用同一套流程","環境可能採 GPIO character device API，需依核心與對應工具操作","缺少 export 就表示系統完全沒有 GPIO"],"correct":2,"explanation":"sysfs 與 character device 是不同 ABI。較新的環境可用 gpiochip 與 line offset，不能直接沿用舊 sysfs 路徑或把全域編號當成 offset。TX2 實驗仍應以該機核心所支援的介面為準。","source":"複習筆記 · Lab 2 §3 sysfs 的四個操作"},{"id":25,"topic":2,"prompt":"兩組 LED 切換極快，肉眼像全都亮著，CPU 使用率也偏高。哪個修改最可能同時改善兩個現象？","options":["將次數字串改為長整數","每次切換前重做 cross-compile","把兩組的 LED 交換成奇數和偶數","每組狀態維持可觀察的間隔，避免忙迴圈"],"correct":3,"explanation":"缺少等待時，程式會盡可能快地改變輸出，肉眼可能看不清明暗交替，CPU 也會持續忙碌。保留明確間隔或採計時機制，可以讓交替行為可驗證。","source":"複習筆記 · Lab 2 §5 實作驗證與除錯"},{"id":26,"topic":2,"prompt":"若要用 TX2 的 GPIO 量到光敏分壓點的多階電壓值，Lab 5 新增了什麼環節？","options":["把 GPIO 的 \u003ccode>direction\u003c/code> 設成 \u003ccode>analog\u003c/code>","用 MCP3008 取樣與量化，再經 SPI 讀取結果","連續讀兩個 GPIO，取平均後即可量電壓","將 \u003ccode>value\u003c/code> 轉成浮點數，就能取得實際電壓"],"correct":1,"explanation":"課程 GPIO 讀取的是邏輯高低。MCP3008 將類比電壓量化成 10-bit 數字，主機再以 SPI 讀到轉換碼。數值型別的轉換無法增加原本輸入的量測解析度。","source":"複習筆記 · Lab 2 §3 sysfs 的四個操作"},{"id":27,"topic":3,"prompt":"Qt Creator、qmake 和 C++ 編譯器在 Lab 3 分別做什麼？","options":["GUI 框架、連結器、編輯器","編譯器、IDE、生成 \u003ccode>.ui\u003c/code>","IDE、生成建置規則、編譯 C++ 原始碼","執行 GPIO、顯示圖片、處理鍵盤"],"correct":2,"explanation":"Qt Creator 管理專案、kit 與建置介面。qmake 依 \u003ccode>.pro\u003c/code> 和工具鏈設定生成 Makefile，再由所選的編譯器執行 C++ 編譯。","source":"複習筆記 · Lab 3 §2 Qt 幾個名稱別混用"},{"id":28,"topic":3,"prompt":"專案中要調整 Qt Designer 的畫面元件配置，優先應查看哪個檔案？","options":["\u003ccode>.pro\u003c/code>","\u003ccode>.ui\u003c/code>","\u003ccode>.o\u003c/code>","\u003ccode>.ko\u003c/code>"],"correct":1,"explanation":"\u003ccode>.ui\u003c/code> 描述介面，\u003ccode>.pro\u003c/code> 描述建置所需的 sources、forms 等配置。\u003ccode>.o\u003c/code> 是編譯產物，\u003ccode>.ko\u003c/code> 則是核心模組。畫面事件處理通常另外寫在 C++ 實作檔。","source":"複習筆記 · Lab 3 §2 Qt 幾個名稱別混用"},{"id":29,"topic":3,"prompt":"下列哪項最符合 Qt MOC 的用途？","options":["在執行期自動掃描 J21 腳位","把 ARM 可執行檔轉成 x86 可執行檔","從含 Qt 物件宣告的 C++ 程式生成 meta-object 所需的程式碼","將 \u003ccode>.ui\u003c/code> 和 Linux kernel headers 合成 \u003ccode>.ko\u003c/code>"],"correct":2,"explanation":"MOC 支援 Qt 的 meta-object 機制，例如含 \u003ccode>Q_OBJECT\u003c/code> 的類別。它和跨平台編譯及 GPIO 接線各在不同層次。qmake 可把 MOC 的生成工作納入建置規則。","source":"複習筆記 · Lab 3 §2 Qt 幾個名稱別混用"},{"id":30,"topic":3,"prompt":"在 \u003ccode>connect(button, &amp;QPushButton::clicked, this, &amp;MainWindow::startRunning)\u003c/code> 中，哪個會在按鈕事件發生時執行？","options":["直接卸載按鈕物件","再執行一次 \u003ccode>connect\u003c/code> 才會有反應","呼叫 \u003ccode>qmake\u003c/code> 以生成新事件","接收端的 \u003ccode>startRunning\u003c/code>"],"correct":3,"explanation":"按鈕發出 clicked signal，連線將事件交給接收端的 slot。連線通常在初始化建立一次，後續每次點擊就會依該關聯執行對應邏輯。","source":"複習筆記 · Lab 3 §3 Signal、slot 與 event loop"},{"id":31,"topic":3,"prompt":"使用者按下切換模式後，slot 裡的無限迴圈持續 sleep，其他按鈕也失去反應。最適合的修法為何？","options":["在迴圈中持續重接 clicked signal","把所有 QPushButton 換成 QLabel","改用更長的 sleep，讓按鈕有更多時間觸發","用 QTimer 的 timeout 每次更新一個狀態，再返回 event loop"],"correct":3,"explanation":"GUI 執行緒若卡在同一個 slot，就無法處理後續輸入和重繪。QTimer 讓更新分散成短回呼，event loop 可以在兩次 timeout 之間處理停止與反轉。","source":"複習筆記 · Lab 3 §3 Signal、slot 與 event loop"},{"id":32,"topic":3,"prompt":"Lab 3 的 LED Shining 執行前四顆燈全亮，現在只勾 LED2 和 LED4。按下按鈕後應顯示哪個狀態？","options":["\u003ccode>[滅, 亮, 滅, 亮]\u003c/code>，圖片與實燈同步","\u003ccode>[亮, 亮, 亮, 亮]\u003c/code>，只將勾選燈設為亮","\u003ccode>[亮, 滅, 亮, 滅]\u003c/code>，以反相顯示勾選","畫面顯示 \u003ccode>[滅, 亮, 滅, 亮]\u003c/code>，GPIO 維持全亮"],"correct":0,"explanation":"LED Shining 用四個 checkbox 決定完整的輸出狀態。未勾選的 LED1 和 LED3 應熄滅。UI 和 GPIO 應套用同一個狀態，避免畫面與實體結果分歧。","source":"複習筆記 · Lab 3 §1 原教材要求"},{"id":33,"topic":3,"prompt":"流水燈目前 \u003ccode>currentIndex=0\u003c/code>，方向是 \u003ccode>-1\u003c/code>，索引範圍 0 到 3。哪個運算能得到下一格 3？","options":["\u003ccode>(currentIndex - direction + 4) % 4\u003c/code>","\u003ccode>(currentIndex + 4) % 4\u003c/code>","\u003ccode>(currentIndex + direction) % 4\u003c/code>","\u003ccode>(currentIndex + direction + 4) % 4\u003c/code>"],"correct":3,"explanation":"代入後是 \u003ccode>(0 - 1 + 4) % 4 = 3\u003c/code>。這裡先加一個完整週期，避免 C++ 的負餘數成為陣列索引。最後一個選項會反向套用 direction，得到 1。","source":"複習筆記 · Lab 3 §4 用狀態描述燈，不讓按鈕各自亂寫"},{"id":34,"topic":3,"prompt":"流水燈目前亮 LED3，正向本來要走向 LED4。此時按 Change Direction，下次更新應怎麼做？","options":["保留目前位置，下一格照樣亮 LED4","先重設成 LED1，再沿舊方向繼續","保留目前位置，下一格改亮 LED2","立即結束流水燈並清掉目前位置"],"correct":2,"explanation":"反轉改變的是前進方向。若目前索引是 2，將方向設為 -1 後，下一格索引是 1，也就是 LED2。保留目前位置可讓反轉從當下狀態接續。","source":"複習筆記 · Lab 3 §4 用狀態描述燈，不讓按鈕各自亂寫"},{"id":35,"topic":3,"prompt":"使用者在 Running 模式按停止，哪組狀態變更最完整？","options":["只清空四燈，讓 timer 在下一拍重新寫入","停止 timer、清空 LED 輸出並更新畫面","只把圖片隱藏，讓實體燈繼續跑","只停止 timer，保留最後一顆亮燈"],"correct":1,"explanation":"停止有兩個結果。未來的 timeout 不再驅動流水燈，當前的燈與示意圖也都關閉。漏掉其中一部分會留下舊畫面、實體亮燈或下一拍復亮。","source":"複習筆記 · Lab 3 §4 用狀態描述燈，不讓按鈕各自亂寫"},{"id":36,"topic":3,"prompt":"教學範例把 1% 對到 1000 ms，100% 對到 100 ms。若提高 speed 後看起來更慢，最可能是哪一類錯誤？","options":["把較大的速度值錯誤映射成更長的 interval","把 Qt Creator 改成另一個主題","把秒數換成毫秒時多乘了一次 GPIO 編號","讓 slider 與 progress bar 顯示相同數字"],"correct":0,"explanation":"interval 是每次更新之間的等待時間。等待越長，閃爍或移動越慢。速度百分比和毫秒是不同單位，映射的方向也要符合 UI 的語意。","source":"複習筆記 · Lab 3 §5 速度與元件連動"},{"id":37,"topic":3,"prompt":"滑鼠和快捷鍵都能啟動 Switching，哪個設計最能避免兩者結果不同？","options":["各寫一套狀態機，分別使用自己的 timer","兩種輸入都呼叫同一個模式切換函式","快捷鍵只改畫面，把實燈留給下一次滑鼠操作","快捷鍵只更新 checkbox，滑鼠只操作 GPIO"],"correct":1,"explanation":"共用模式切換函式可讓狀態、timer 和輸出採同一套規則。輸入來源只負責送事件，避免其中一條路徑少做了停用前一模式或同步畫面。","source":"複習筆記 · Lab 3 §5 速度與元件連動"},{"id":38,"topic":3,"prompt":"LED QTE 目前 80 分，按對一次之後的合理行為是什麼？","options":["加 20 到 100，但把同一題留著繼續接受按鍵","加 20 到 100，結束當局並呈現過關","加 10 到 90，繼續同一題","分數歸零，因為應保留到下局才計分"],"correct":1,"explanation":"依課程要求，每次答對得 20 分，100 分通關。回合達標後應轉入結束狀態，避免多餘按鍵改動已結束的分數或 LED 狀態。","source":"複習筆記 · Lab 3 §6 QTE 的重點是回合狀態"},{"id":39,"topic":3,"prompt":"把 Qt 專案原始碼傳到 TX2，在 TX2 執行 \u003ccode>qmake\u003c/code> 和 \u003ccode>make\u003c/code>，且使用 TX2 原生工具鏈。這是哪種建置？","options":["在 Mac 上進行 ARM Linux cross-compilation","透過 SSH 將現成的 macOS 執行檔轉換格式","在瀏覽器進行程式轉譯","TX2 上的 native build"],"correct":3,"explanation":"實際建置發生在 TX2，工具鏈也以本機環境為目標，因此是 native build。SSH 只是遠端操作方式，qmake 也只是產生與所選工具鏈相符的規則。","source":"複習筆記 · Lab 3 §7 部署與除錯"},{"id":40,"topic":3,"prompt":"SSH 能登入 TX2，啟動 Qt 程式卻顯示無法連接 display。哪個檢查最直接？","options":["把 \u003ccode>.pro\u003c/code> 重新命名成 \u003ccode>.ui\u003c/code>","將 C++ 編譯選項全改成 \u003ccode>-O0\u003c/code>","改用不同 sysfs number","確認圖形 session、DISPLAY 與客戶端 X server／X forwarding"],"correct":3,"explanation":"遠端 shell 與 GUI 顯示是兩條路徑。SSH 登入成功代表文字連線可用，GUI 仍需要可用的顯示環境或 X forwarding。這個錯誤應先在顯示層排查。","source":"複習筆記 · Lab 3 §7 部署與除錯"},{"id":41,"topic":4,"prompt":"手機瀏覽器按下 LED 控制按鈕，哪條路徑最符合 Lab 4？","options":["Express 將網頁複製到 LED → LED 解析 HTML","瀏覽器送 HTTP → TX2 Node.js 驗證參數 → GPIO 控制程式 → LED","GPIO 先送 HTTP 到手機 → npm 啟動 LED","瀏覽器執行 TX2 的 C++ 二進位檔 → 手機腳位 → TX2 LED"],"correct":1,"explanation":"瀏覽器負責傳送請求和呈現結果。TX2 端的 Node.js／Express 解析請求，再由具備 GPIO 存取權的控制程式改變輸出。","source":"複習筆記 · Lab 4 §2 從表單到硬體的完整路徑"},{"id":42,"topic":4,"prompt":"在 Lab 4 中，哪一項正確配對 Node.js、Express、npm 的角色？","options":["Web server 的硬體、JavaScript 編譯器、Linux shell","套件管理工具、瀏覽器、GPIO ABI","Web 框架、Linux kernel driver、JavaScript runtime","JavaScript runtime、Web 框架、套件管理工具"],"correct":3,"explanation":"Node.js 提供 JavaScript 執行環境。Express 在該環境提供 route 與 middleware 等功能，npm 用來管理與安裝專案依賴。","source":"複習筆記 · Lab 4 §2 從表單到硬體的完整路徑"},{"id":43,"topic":4,"prompt":"GET 表單使用 \u003ccode>&lt;input name=&quot;led&quot; value=&quot;LED2&quot;&gt;\u003c/code>。Express 路由要讀取它，鍵和值是哪一組？","options":["\u003ccode>req.query.led\u003c/code>，值為 \u003ccode>LED2\u003c/code>","\u003ccode>req.query.LED2\u003c/code>，值為 \u003ccode>led\u003c/code>","\u003ccode>req.body.LED2\u003c/code>，值為 \u003ccode>led\u003c/code>","\u003ccode>req.params.led\u003c/code>，值為 \u003ccode>LED2\u003c/code>"],"correct":0,"explanation":"表單的 name 決定參數名稱，value 決定內容。GET 表單將資料放入 query string，對應 Express 的 req.query。req.params 則用於路由路徑參數。","source":"複習筆記 · Lab 4 §3 HTML 與後端參數怎麼對應？"},{"id":44,"topic":4,"prompt":"使用 \u003ccode>POST\u003c/code> 送出預設 HTML 表單的 URL-encoded 資料。伺服器要從 \u003ccode>req.body\u003c/code> 讀取欄位，應先設定什麼？","options":["靜態圖片的 MIME type","為路由開啟 X forwarding","GPIO 的 \u003ccode>direction\u003c/code>","對應的 URL-encoded body parser"],"correct":3,"explanation":"POST 表單資料放在 request body。Express 要先經適合其格式的 middleware 解析，後續 handler 才能以 req.body 取值。GET query 的解析方式不同。","source":"複習筆記 · Lab 4 §3 HTML 與後端參數怎麼對應？"},{"id":45,"topic":4,"prompt":"使用相同 \u003ccode>name=&quot;led&quot;\u003c/code> 的 checkbox 讓使用者多選。後端最需要預先處理哪些情況？","options":["每次收到的欄位型別一定是整數","未勾選、單一值、多個值","每次一定收到固定四個 LED 值","未勾選時一律收到字串 \u003ccode>false\u003c/code>"],"correct":1,"explanation":"未勾選的 checkbox 通常不會成為表單資料。重複的 name 可能有多值，實際表現還取決於 parser。先把合法輸入正規化為列表，才能一致驗證與執行。","source":"複習筆記 · Lab 4 §3 HTML 與後端參數怎麼對應？"},{"id":46,"topic":4,"prompt":"網頁已顯示「已送出 LED3 on」。要進一步說明 TX2 的程式已成功執行，後端至少要多做什麼？","options":["在送出後直接假設燈已亮","把 GET 改成 POST 即可保證成功","檢查子程序結果，再回報成功或錯誤","在網頁上把文字顏色改成綠色"],"correct":2,"explanation":"送出代表前端發出請求。後端檢查 exit code 或 callback 錯誤後，才有程式執行結果。若要確認實燈真的亮，還需要對應的讀回或觀察證據。","source":"複習筆記 · Lab 4 §3 HTML 與後端參數怎麼對應？"},{"id":47,"topic":4,"prompt":"後端已知要執行固定的 \u003ccode>gpio\u003c/code> 檔案，LED 和 on/off 來自使用者輸入。哪種做法較合適？","options":["用 \u003ccode>fork\u003c/code> 將 C++ 執行檔當成 Node.js 模組","將輸入當成新的可執行檔路徑","用 \u003ccode>exec\u003c/code> 將使用者輸入直接拼成 shell 命令","驗證參數後，使用 \u003ccode>execFile(file, [led, power], callback)\u003c/code>"],"correct":3,"explanation":"execFile 預設直接執行檔案，參數以陣列傳入。白名單能先排除不合法的 LED 與 power，並減少使用者輸入被 shell 當成語法的機會。","source":"複習筆記 · Lab 4 §4 child_process 的四個 API"},{"id":48,"topic":4,"prompt":"控制工作會持續輸出多行日誌，後端想逐段接收，而非等全部輸出收集完才處理。哪個 API 最貼近需求？","options":["\u003ccode>execSync\u003c/code> 並在 HTTP handler 等待完成","\u003ccode>exec\u003c/code> 並只讀最後的 callback 結果","\u003ccode>spawn\u003c/code> 並監聽子程序的 stdout stream","\u003ccode>npm install\u003c/code> 並讀取 package.json"],"correct":2,"explanation":"spawn 回傳 ChildProcess，可透過 stdout／stderr streams 讀取輸出。exec 的 callback 則適合取得結束後緩衝的內容。同步執行會占住 server 的事件迴圈。","source":"複習筆記 · Lab 4 §4 child_process 的四個 API"},{"id":49,"topic":4,"prompt":"使用 Node.js 的 \u003ccode>fork\u003c/code> 開一個 Node 子程序，主要如何在父子程序間交換控制訊息？","options":["使用 IPC 通道傳送訊息","只靠 HTTP query string 自動同步","共用同一個 process ID","直接讀寫同一個 JavaScript 區域變數"],"correct":0,"explanation":"fork 建立子程序與 IPC 通道。兩個程序各有自己的 JavaScript 狀態，應明確傳送啟動、停止或反轉訊息。父程序中的區域變數不會自動複製後持續同步。","source":"複習筆記 · Lab 4 §4 child_process 的四個 API"},{"id":50,"topic":4,"prompt":"每次按 Running Light on 都新建一個無限閃燈程序，Stop 偶爾失效。最合理的重構為何？","options":["每次按 Stop 再啟動一個清燈程序，但不處理既有工作","維護單一控制器或子程序 handle，讓開始、停止、反轉作用於同一狀態","將燈光狀態存進瀏覽器按鈕文字","在每次 request 的區域變數保存方向，用完就丟棄"],"correct":1,"explanation":"多個持續執行的程序會同時寫入同一組 LED。即使清燈一次，舊程序仍可在下一拍覆寫輸出。將持續工作集中管理後，後續請求才有同一個操作對象。","source":"複習筆記 · Lab 4 §5 如何讓流水燈可停止與反轉？"},{"id":51,"topic":4,"prompt":"某 route 用無限同步迴圈更新 LED。網頁仍顯示，但新的 off 請求一直等不到回應。哪個改動可直接解決阻塞？","options":["使用非阻塞 timer 或受控子程序，讓 handler 能返回","把 port 改成 80，維持原迴圈","把迴圈的等待改成同步 busy-wait","加上另一個同步迴圈檢查 off 參數"],"correct":0,"explanation":"Node.js 需要事件迴圈處理新 HTTP 請求。同步無限迴圈占住執行緒，使 off 請求沒有機會被處理。將持續更新移出長時間 handler 後，伺服器可回應後續命令。","source":"複習筆記 · Lab 4 §5 如何讓流水燈可停止與反轉？"},{"id":52,"topic":4,"prompt":"在 TX2 上打開 \u003ccode>localhost:8080\u003c/code> 正常，筆電連 TX2 的正確 IP 和 port 卻失敗。哪項最應先查？","options":["是否要在瀏覽器安裝 Express","伺服器是否只綁 loopback，以及兩端網路和防火牆","是否必須先修改 LED 的實體 Pin 15","是否應先把所有 GET 改成 POST"],"correct":1,"explanation":"TX2 本機能開網頁，表示服務至少在本機某個位址可用。若只監聽 loopback，其他主機連不上。應先看 listen 位址，再檢查網路可達性與防火牆。","source":"複習筆記 · Lab 4 §6 連線與部署怎麼分層查？"},{"id":53,"topic":4,"prompt":"筆電用 USB SSH 可進 TX2，TX2 上的 npm 卻無法解析 registry 網域。哪個測試能直接確認名稱解析？","options":["在 TX2 執行 \u003ccode>getent hosts registry.npmjs.org\u003c/code>","在 TX2 執行 \u003ccode>lsmod\u003c/code>","在筆電執行 \u003ccode>uname -m\u003c/code>","用 \u003ccode>chmod\u003c/code> 修改 GPIO value"],"correct":0,"explanation":"USB SSH 只證明筆電能到 TX2，外網路由和 DNS 仍是獨立條件。getent 可查 TX2 自己能否解析 registry 名稱。若解析成功，再查 HTTP 連線等其他層次。","source":"複習筆記 · Lab 4 §6 連線與部署怎麼分層查？"},{"id":54,"topic":4,"prompt":"Lab 4 的 Express server 長時間運行，收到 HTTP 後呼叫固定的 GPIO 程式。和傳統 CGI 的對照何者合理？","options":["只要使用 HTML form 就一定是 CGI","Express 每次收到請求都必須重新啟動整個 Node server","CGI 只能處理 GPIO，Express 只能處理靜態圖片","兩者都能把 Web 請求接到後端處理，Express 可由常駐程序處理多次請求"],"correct":3,"explanation":"CGI 定義 Web server 與外部處理程式之間的介面，傳統部署常為每次請求啟動外部程式。Express 的 route 在常駐程序處理請求，需要時才呼叫獨立 GPIO 程式。","source":"複習筆記 · Lab 4 §7 IoT 與 CGI 的概念題"},{"id":55,"topic":5,"prompt":"原實驗把讀取 MCP3008 和以門檻控制兩顆 LED 放在一起。下列哪種交付分工符合筆記整理的要求？","options":["ADC 與門檻控制各一支，防盜快照只用終端機指令","把 CSI 顯示與亮暗門檻寫成同一支，省略防盜狀態","讀 ADC、開關 LED、照相各寫一支，防盜整合不必交付","感測與門檻控制一支程式，防盜快照另一支，CSI 顯示可先用命令測試"],"correct":3,"explanation":"項目一與二要求整合，目的是看到讀值與 LED 門檻行為的關係。項目三是用命令做相機顯示測試，項目四另做防盜快照，包含異常觸發與復歸。","source":"複習筆記 · Lab 5 §1 原教材要求與兩支程式"},{"id":56,"topic":5,"prompt":"若從環境光一路追到 Python 收到的 ADC 值，哪個訊號鏈正確？","options":["光線 → GPIO 數位高低 → LDR 放大 → MCP3008 輸出類比","光線 → LDR 輸出數位碼 → MCP3008 驅動 LED → SPI 接地","光線 → LDR 電阻 → 分壓電壓 → ADC 取樣量化 → SPI 讀值","光線 → SPI 位元 → LDR 電阻 → ADC 產生分壓"],"correct":2,"explanation":"LDR 將光線變化反映為電阻變化，分壓電路才把它轉為可量測的電壓。MCP3008 量化電壓，TX2 透過 SPI 取得已轉換的數位碼。","source":"複習筆記 · Lab 5 §2 訊號鏈：光照不是直接進 GPIO"},{"id":57,"topic":5,"prompt":"MCP3008 的 DIN 和 DOUT 應分別連到 TX2 的哪兩個 SPI 訊號？","options":["DIN 接 MOSI，DOUT 接 MISO","DIN 接 MISO，DOUT 接 MOSI","DIN 接 CS，DOUT 接 SCLK","DIN 接 SCLK，DOUT 接 CS"],"correct":0,"explanation":"MOSI 是主機輸出、周邊輸入，因此接 MCP3008 的 DIN，送出通道等控制位元。MISO 是主機輸入，因此接 DOUT，接收 ADC 結果。","source":"複習筆記 · Lab 5 §4 SPI 訊號與 ADC 資料解碼"},{"id":58,"topic":5,"prompt":"確認使用 hardware SPI，系統只有 \u003ccode>/dev/spidev3.0\u003c/code> 對應實驗接線。Python 應如何開啟它？","options":["\u003ccode>spi.open(0, 3)\u003c/code>","\u003ccode>spi.open(3, 0)\u003c/code>","\u003ccode>spi.open(0, 0)\u003c/code>","\u003ccode>spi.open(23, 24)\u003c/code>"],"correct":1,"explanation":"\u003ccode>/dev/spidevB.C\u003c/code> 中 B 是 bus，C 是 device／片選索引。實體腳位 23、24 是接頭位置，不能當成這兩個參數。題目已確認對應裝置，因此用 3、0。","source":"複習筆記 · Lab 5 §3 GPIO bit-banging 與 spidev 分開學"},{"id":59,"topic":5,"prompt":"兩位同學分別用 Jetson.GPIO bit-banging 和 \u003ccode>spidev\u003c/code> 讀 ADC，差異在哪？","options":["bit-banging 由 controller 產生時序，spidev 由 Python 逐 bit 改腳位","兩者都需要同一個 \u003ccode>/dev/spidevB.C\u003c/code> 才會切換 GPIO","兩者都用 J21 實體腳位當 spidev 的 bus number","bit-banging 自行切換 GPIO 時序，spidev 交由 SPI controller 傳輸"],"correct":3,"explanation":"bit-banging 程式自己控制 CS、CLK、MOSI 並讀 MISO。spidev 由核心 SPI 介面與控制器處理交易，需要相符的 pinmux 和裝置節點。","source":"複習筆記 · Lab 5 §3 GPIO bit-banging 與 spidev 分開學"},{"id":60,"topic":5,"prompt":"MCP3008 用 SPI 傳回一筆結果，傳到第二個 byte 中途就解除 CS。這最可能造成什麼？","options":["只影響下一筆交易的速度，當前位元一定正確","只要 CLK 繼續跳動，晶片就一定把同一筆資料送完","只會改變 ADC 的 10-bit 解析度為 8-bit","晶片把交易提早結束，收到的 bytes 無法當作完整轉換碼"],"correct":3,"explanation":"MCP3008 的 CS 為低有效，整筆 SPI 交易要維持選取。若中途解除，後續 clock 便不再屬於原本的交易，無法假設三個接收 byte 仍可照原公式拼接。","source":"複習筆記 · Lab 5 §4 SPI 訊號與 ADC 資料解碼"},{"id":61,"topic":5,"prompt":"依課堂送法 \u003ccode>[1, (8 + channel) &lt;&lt; 4, 0]\u003c/code>，讀取單端 CH5 應送出什麼？","options":["\u003ccode>[0x01, 0x85, 0x00]\u003c/code>","\u003ccode>[0x01, 0xD0, 0x00]\u003c/code>","\u003ccode>[0x01, 0x50, 0x00]\u003c/code>","\u003ccode>[0x01, 0xC0, 0x00]\u003c/code>"],"correct":1,"explanation":"\u003ccode>8 + 5 = 13\u003c/code>，十六進位為 D，左移 4 位得到 D0。第二個 byte 的高位組同時包含 single-ended 選擇和通道位元，不能只把通道數字附加在最低位。","source":"複習筆記 · Lab 5 §4 SPI 訊號與 ADC 資料解碼"},{"id":62,"topic":5,"prompt":"收到 \u003ccode>rx = [0x00, 0xA2, 0x40]\u003c/code>。以 \u003ccode>((rx[1] &amp; 3) &lt;&lt; 8) | rx[2]\u003c/code> 解碼，ADC 是多少？","options":["64","640","41536","576"],"correct":3,"explanation":"\u003ccode>0xA2 &amp; 3\u003c/code> 得到 2，左移 8 位等於 512。末 byte 0x40 是 64，合併後為 576。若直接拼入整個 0xA2，結果會超過 10-bit 範圍。","source":"複習筆記 · Lab 5 §4 SPI 訊號與 ADC 資料解碼"},{"id":63,"topic":5,"prompt":"10-bit ADC 的 VREF 為 3.3 V。理想 LSB 和最大輸出碼分別是什麼？","options":["約 3.30 mV，1024","約 0.806 mV，4095","約 3.22 mV，1023","約 12.9 mV，255"],"correct":2,"explanation":"10-bit 共有 2¹⁰ = 1024 個量化碼，從 0 開始，所以最大碼為 1023。理想 LSB 以參考電壓除以量化碼數，3.3 ÷ 1024 約為 0.00322 V。","source":"複習筆記 · Lab 5 §5 ADC 換算：1024 與 1023 的角色"},{"id":64,"topic":5,"prompt":"按講義理想換算 \u003ccode>V ≈ code × VREF / 1024\u003c/code>，VREF=3.3 V、code=512 約對應多少伏特？","options":["1.65 V","0.825 V","2.475 V","3.3 V"],"correct":0,"explanation":"512 恰好是 1024 的一半，理想換算結果是參考電壓的一半，也就是 1.65 V。實機的誤差還取決於參考電壓、雜訊和 ADC 本身。","source":"複習筆記 · Lab 5 §5 ADC 換算：1024 與 1023 的角色"},{"id":65,"topic":5,"prompt":"接法是 3.3 V → 10 kΩ 固定電阻 → VOUT → LDR → GND。LDR 為 100 kΩ，10-bit ADC 的 VREF 為 3.3 V。VOUT 和 ADC 估算值是多少？","options":["約 3.00 V，931","約 1.65 V，512","約 3.30 V，1023","約 0.30 V，93"],"correct":0,"explanation":"ADC 量的是下方 LDR 上的電壓，因此 VOUT = 3.3 × 100 ÷ (10 + 100) = 3.00 V。再乘上 1024 ÷ 3.3，得到約 931。0.30 V 是同條件下上方固定電阻的壓降。","source":"複習筆記 · Lab 5 §6 LDR 放哪邊，決定讀值方向"},{"id":66,"topic":5,"prompt":"把 LDR 改接在分壓器上方、固定電阻接地。其他條件相同，光線變強時 VOUT 如何變化？","options":["VOUT 先上升再下降，因為 SPI 改變方向","VOUT 下降，ADC 碼通常變小","VOUT 上升，ADC 碼通常變大","VOUT 一定維持 VREF 的一半"],"correct":2,"explanation":"光線變強時 LDR 電阻下降。此時下方是固定電阻，VOUT = VCC × Rfixed ÷ (RLDR + Rfixed)，分母減小，輸出上升。交換分壓器位置會反轉原本的趨勢。","source":"複習筆記 · Lab 5 §6 LDR 放哪邊，決定讀值方向"},{"id":67,"topic":5,"prompt":"教學例規定 ADC ≥600 開燈、≤450 關燈、中間保留狀態。原本熄燈，連續讀到 620、520、460、430，最後一個仍亮的讀值是哪個？","options":["460","430","520","620"],"correct":0,"explanation":"620 首先跨越開燈門檻。520 和 460 都位於兩門檻中間，延續亮燈狀態。430 低於關燈門檻才熄滅，這就是用遲滯降低頻繁切換。","source":"複習筆記 · Lab 5 §6 LDR 放哪邊，決定讀值方向"},{"id":68,"topic":5,"prompt":"正常狀態下門檻 T=200，ADC 依序是 720、710、450。何時觸發，基準 b 應記多少？","options":["讀到 710 時觸發，b=720","讀到 450 時觸發，b=710","不觸發，因為變化方向是下降","讀到 450 時觸發，b=450"],"correct":1,"explanation":"正常狀態比較相鄰值的絕對差。720 到 710 只差 10，710 到 450 差 260，已超門檻。觸發時保存變化之前的讀值 710，用來判斷後續是否復歸。","source":"複習筆記 · Lab 5 §7 防盜快照：觸發與復歸用不同參照值"},{"id":69,"topic":5,"prompt":"警報已觸發，基準 b=250、T=120。ADC 之後讀到 780、775、360，應在哪一筆復歸？","options":["775","360","三筆都不復歸","780"],"correct":1,"explanation":"警報中應比較每筆和固定基準 250 的差，分別為 530、525、110。只有 110 小於門檻，因此在 360 復歸。780 和 775 之間變化很小，仍然遠離原環境。","source":"複習筆記 · Lab 5 §7 防盜快照：觸發與復歸用不同參照值"},{"id":70,"topic":5,"prompt":"T=150，採本筆記「等於門檻時保留目前狀態」的設計。從正常起，依序讀 200、350、530、500、499，何時復歸？","options":["350","500","499","530"],"correct":2,"explanation":"200 到 350 差 150，仍正常。350 到 530 差 180，觸發並保存 b=350。500 距基準正好 150，維持警報。499 距基準 149，才回到正常。","source":"複習筆記 · Lab 5 §7 防盜快照：觸發與復歸用不同參照值"},{"id":71,"topic":5,"prompt":"異常後已連拍三張，當前值仍大幅偏離觸發前基準。依 Lab 5 後段要求應採取哪個行為？","options":["維持警報，依追拍策略取樣與拍照，直到回到原基準附近","拍完第三張就復歸，再用同一批照片決定燈是否交替","把基準改成當前值，立刻讓差值為零","只要連續兩筆差值小就復歸，即使仍遠離原基準"],"correct":0,"explanation":"連拍三張是觸發後第一批處理。接下來的狀態取決於 ADC 是否回到基準附近。若更新基準為異常值，持續異常便會被錯誤判為已復歸。","source":"複習筆記 · Lab 5 §7 防盜快照：觸發與復歸用不同參照值"},{"id":72,"topic":5,"prompt":"T=100，正常時連續讀到 100、170、240、310、380。依相鄰差值規則會發生什麼？","options":["讀到 310 時觸發，因為累計上升 210","不觸發，因為每次差值都是 70","讀到 240 時觸發，因為距第一筆 140","讀到 380 時觸發，因為目前 ADC 大於門檻"],"correct":1,"explanation":"正常狀態的判斷式使用相鄰讀值，每一次差都是 70，低於 100。雖然總變化達 280，這項實驗規則偵測的是瞬間變化，無法靠同一條判斷式偵測這段慢速漂移。","source":"複習筆記 · Lab 5 §7 防盜快照：觸發與復歸用不同參照值"},{"id":73,"topic":5,"prompt":"CSI 相機的 GStreamer 管線已能用 \u003ccode>xvimagesink\u003c/code> 顯示，現在想讓 OpenCV 取得每張 frame。應如何調整？","options":["將終點換成適當格式的 \u003ccode>appsink\u003c/code>，以 GStreamer 後端讀取","移除 sink，直接從 caps 取出已處理的影像","把 \u003ccode>nvarguscamerasrc\u003c/code> 換成 \u003ccode>appsink\u003c/code> 放在起點","保留 \u003ccode>xvimagesink\u003c/code>，從顯示器直接取得 Python ndarray"],"correct":0,"explanation":"xvimagesink 將資料交給畫面顯示。appsink 將 frame 交給應用程式，可搭配相容的 BGR 格式與 OpenCV 的 GStreamer 後端。仍要檢查相機是否開啟和每次 read 的結果。","source":"複習筆記 · Lab 5 §8 CSI 相機與 GStreamer"},{"id":74,"topic":5,"prompt":"移除 LDR 分壓後，確認電壓範圍安全，把 CH0 分別接 GND 和 3.3 V，成功讀到近零與近滿刻度。接回 LDR 卻讀值幾乎固定，下一步先查什麼？","options":["先更換 SPI bus，即使端點測試已對應正確讀值","量測分壓點並檢查 VOUT 到 CH0、LDR 和麵包板電源軌","只改警報門檻，因為 ADC 輸入已確定有變化","先替換 MCP3008，因為所有固定值都代表 ADC 故障"],"correct":1,"explanation":"兩端點測試顯示 ADC 和 SPI 鏈可在此條件下區分輸入。接回分壓後才出現問題，先確認 VOUT 是否隨光照改變、是否真的接到 CH0，以及電源軌與共地是否連通。","source":"複習筆記 · Lab 5 §9 ADC 一直為 0，怎麼縮小問題？"},{"id":75,"topic":6,"prompt":"依 Lab 6 的驗收分工，簡易模組和字元裝置驅動各在哪裡做？","options":["兩種任務都在 VM 編譯成功就完成全部要求","簡易模組只在 VM，字元裝置必須只在 TX2","兩種任務都只需在 TX2 做一次","簡易模組在 VM 與 TX2 各驗證，字元裝置在 VM 驗證"],"correct":3,"explanation":"簡易模組要在 VM 和 TX2 分別有編譯、載入、卸載及核心訊息的證據。字元裝置項目則在 VM 以使用者程式和裝置節點測試。環境不同，驗證結果要分開記錄。","source":"複習筆記 · Lab 6 §1 原要求：兩個環境、兩種任務"},{"id":76,"topic":6,"prompt":"以 sudo 執行一個程式開啟 \u003ccode>/dev/demo\u003c/code>。哪項描述最正確？","options":["sudo 使程式的所有 C 指令直接在 kernel mode 執行","只要是 root，就能直接呼叫任意 driver callback 地址","程式仍在 user space，以 system call 進入核心執行驅動操作","driver callback 會被搬到 user space 執行，直到程式關閉"],"correct":2,"explanation":"sudo 改變的是程序權限。應用程式透過 open 等 system call 請求核心服務，核心再依裝置號與 file_operations 呼叫對應驅動入口。","source":"複習筆記 · Lab 6 §2 User space、kernel space 與裝置分類"},{"id":77,"topic":6,"prompt":"最小模組想在載入時留下訊息、卸載時清理資源。正確的入口設計為何？","options":["用 \u003ccode>module_init\u003c/code>、\u003ccode>module_exit\u003c/code> 指定函式，以 \u003ccode>pr_info\u003c/code> 記錄","用 \u003ccode>mknod\u003c/code> 直接呼叫模組的初始化與清理函式","用 \u003ccode>.open\u003c/code> 初始化，close 任一 fd 時自動移除模組","用 \u003ccode>main()\u003c/code> 進入，按 Ctrl+C 後由 \u003ccode>printf\u003c/code> 卸載"],"correct":0,"explanation":"kernel module 由核心載入，入口與一般 user-space 可執行檔不同。載入時執行 init，卸載時執行 exit。pr_info／printk 進入核心日誌，可用 dmesg 觀察。","source":"複習筆記 · Lab 6 §3 簡易 module 的生命週期"},{"id":78,"topic":6,"prompt":"Kbuild 規則 \u003ccode>make -C &quot;$KDIR&quot; M=&quot;$PWD&quot; modules\u003c/code> 中，\u003ccode>-C\u003c/code> 和 \u003ccode>M\u003c/code> 的用途各是什麼？","options":["設定交叉編譯架構，設定 major number","設定目標執行檔路徑，指定 module 初始化函式","進入核心建置目錄，指定外部模組所在目錄","進入外部模組目錄，指定核心原始碼下載位置"],"correct":2,"explanation":"\u003ccode>-C\u003c/code> 指向相容的 kernel build tree，先讓 make 進入其建置環境。\u003ccode>M\u003c/code> 傳入外部模組目錄的絕對路徑，使 Kbuild 找到該模組的規則與原始碼。","source":"複習筆記 · Lab 6 §4 Kbuild 與 kernel 必須匹配"},{"id":79,"topic":6,"prompt":"\u003ccode>obj-m += hellod.o\u003c/code> 對外部模組建置代表什麼？","options":["要求 gcc 產生可用 \u003ccode>./hellod.o\u003c/code> 啟動的應用程式","要求系統一開機就載入 hellod 模組","要求核心自動註冊 \u003ccode>/dev/hellod\u003c/code>","要求 Kbuild 建出名為 hellod 的可載入模組"],"correct":3,"explanation":"\u003ccode>obj-m\u003c/code> 指定要編譯的模組，正常建置會產生 \u003ccode>hellod.ko\u003c/code>。是否建立裝置、註冊設備號或自動載入，都需要相應程式或系統設定。","source":"複習筆記 · Lab 6 §4 Kbuild 與 kernel 必須匹配"},{"id":80,"topic":6,"prompt":"VM 和 TX2 都顯示 aarch64。能否據此判定 VM 的 \u003ccode>hellod.ko\u003c/code> 可以直接在 TX2 載入？","options":["可以，只要兩邊都有相同的使用者帳號","可以，只要兩邊的 \u003ccode>uname -m\u003c/code> 一樣","不能單憑架構判定，還要查目標核心版本、設定及符號版本","可以，只要檔名同為 \u003ccode>hellod.ko\u003c/code>"],"correct":2,"explanation":"核心模組要和載入它的核心相容。相同架構只解決指令集的一部分條件，kernel release、建置設定及模組所需的符號版本也要核對。","source":"複習筆記 · Lab 6 §4 Kbuild 與 kernel 必須匹配"},{"id":81,"topic":6,"prompt":"已用 Kbuild 產生 \u003ccode>hellod.ko\u003c/code>。哪組動作最能證明這次的載入和卸載都有完成？","options":["只執行 make 並截圖生成的 \u003ccode>.ko\u003c/code>","insmod 後查 lsmod 和新的 dmesg，再 rmmod 並查卸載紀錄","先看 dmesg 的舊初始化紀錄，再刪除本機 \u003ccode>.ko\u003c/code>","只用 file 確認架構，省略 insmod"],"correct":1,"explanation":"檔案存在只能證明建置產出。驗證需確認模組真的加入執行中的核心，且卸載後有對應結果。新日誌與 lsmod 可交叉確認，避免將過去一次測試誤算為本次成功。","source":"複習筆記 · Lab 6 §5 操作與證據順序"},{"id":82,"topic":6,"prompt":"對 \u003ccode>hellod.ko\u003c/code> 執行 insmod 顯示 \u003ccode>File exists\u003c/code>。優先用哪個方法確認原因？","options":["用 \u003ccode>lsmod\u003c/code> 查是否已載入同名模組","用 \u003ccode>mknod\u003c/code> 建立同名裝置，再載入一次","用 \u003ccode>rm hellod.ko\u003c/code> 移除產物，再試同一條 insmod","把 \u003ccode>.ko\u003c/code> 改副檔名為 \u003ccode>.o\u003c/code>"],"correct":0,"explanation":"此錯誤常表示同名模組已在核心中。先用 lsmod 確認，再按需求處理引用和卸載。磁碟上的 \u003ccode>.ko\u003c/code> 存在原本就是 insmod 讀取檔案的必要條件。","source":"複習筆記 · Lab 6 §9 常見錯誤"},{"id":83,"topic":6,"prompt":"\u003ccode>insmod\u003c/code> 回報 \u003ccode>Invalid module format\u003c/code>，要釐清是否為 kernel 版本不符，最合適的資料組合是什麼？","options":["\u003ccode>lsmod\u003c/code> 的使用者清單及 GPIO export 編號","目前目錄的 \u003ccode>pwd\u003c/code>、模組的 Unix 擁有者","裝置節點的檔名與瀏覽器的 HTTP port","\u003ccode>modinfo\u003c/code> 的 vermagic、目標 \u003ccode>uname -r\u003c/code>、\u003ccode>file\u003c/code> 及新 dmesg"],"correct":3,"explanation":"modinfo 能顯示模組的 vermagic，uname -r 告知執行中核心的 release。再查看二進位架構和核心日誌，有助定位到底是版本、架構、配置還是其他載入條件不符。","source":"複習筆記 · Lab 6 §9 常見錯誤"},{"id":84,"topic":6,"prompt":"\u003ccode>mknod /dev/demo c 60 0\u003c/code> 中，\u003ccode>c\u003c/code>、60、0 分別代表什麼？","options":["字元裝置、major 60、minor 0","區塊裝置、minor 60、major 0","核心模組、版本 60、修訂 0","字元裝置、檔案權限 60、參數 0"],"correct":0,"explanation":"\u003ccode>c\u003c/code> 建立 character device 類型。裝置號為 major 60、minor 0，供核心定位註冊的裝置。它們與版本及 Unix 權限是不同欄位。","source":"複習筆記 · Lab 6 §6 /dev/demo、major/minor 與 register_chrdev"},{"id":85,"topic":6,"prompt":"\u003ccode>/dev/demo\u003c/code> 已存在，類型為字元裝置，號碼為 60:0，驅動卻只註冊 major 61。開啟失敗時應如何修正？","options":["讓節點設備號與該驅動實際註冊的號碼一致","只提高檔案權限，繼續使用 major 60","將節點由字元裝置改成普通檔案","將 \u003ccode>/dev/demo\u003c/code> 改名成與 \u003ccode>.ko\u003c/code> 完全相同"],"correct":0,"explanation":"核心靠設備號找到對應的驅動，檔名主要給使用者辨識。即使節點名稱看起來正確，major 不匹配也無法指向這個驅動。還應確認所用 minor 是該驅動支援的號碼。","source":"複習筆記 · Lab 6 §6 /dev/demo、major/minor 與 register_chrdev"},{"id":86,"topic":6,"prompt":"同一個驅動想區分兩個實例，兩個節點都使用同一 major。在合理的註冊設定下，要用哪項區分實例？","options":["使用不同 minor，驅動依次設備號選對應狀態","兩個 minor 必須都為零，改以不同檔名區分即可","改用不同 kernel release 區分","以 lsmod 裡的模組引用數代表實例號"],"correct":0,"explanation":"major 可把一組設備交給同一驅動，minor 則能讓驅動區分實例。建立不同路徑但使用相同設備號，仍會指到同一設備號所對應的介面。","source":"複習筆記 · Lab 6 §6 /dev/demo、major/minor 與 register_chrdev"},{"id":87,"topic":6,"prompt":"已開啟 \u003ccode>/dev/demo\u003c/code>，使用者程式呼叫 \u003ccode>ioctl(fd, cmd, arg)\u003c/code>，驅動有註冊對應的現代 handler。主要入口是哪個？","options":["\u003ccode>module_exit\u003c/code>","\u003ccode>.release\u003c/code>","\u003ccode>.unlocked_ioctl\u003c/code>","\u003ccode>.write\u003c/code>"],"correct":2,"explanation":"ioctl 傳送的是裝置特定控制命令，核心依 file_operations 找到相應 handler。普通資料寫入走 write，釋放開啟實例走 release，卸載模組才走 module exit。","source":"複習筆記 · Lab 6 §7 使用者操作如何進到 callback？"},{"id":88,"topic":6,"prompt":"程序持有指向同一開啟實例的兩個檔案描述符。關掉其中一個時，哪個敘述正確？","options":["兩個 fd 必須各觸發一次同一開啟實例的 release","每次 close 都一定執行 module_exit","最後一個開啟實例的引用釋放時才執行對應的 release，模組有獨立生命週期","第一次 close 就必須卸載模組並刪除節點"],"correct":2,"explanation":"描述符可共享同一開啟檔案。關閉其中一個只減少引用，最後釋放該實例才做 release。模組是否可卸載另外取決於整體引用與卸載操作。","source":"複習筆記 · Lab 6 §7 使用者操作如何進到 callback？"},{"id":89,"topic":6,"prompt":"驅動的 \u003ccode>.write\u003c/code> 收到 user buffer，\u003ccode>.read\u003c/code> 要把資料交還給 user buffer。兩者的複製方向何者正確？","options":["兩者都可直接把 user pointer 當 kernel pointer 解參考","兩者都用 \u003ccode>copy_to_user\u003c/code>","write 用 \u003ccode>copy_from_user\u003c/code>，read 用 \u003ccode>copy_to_user\u003c/code>","write 用 \u003ccode>copy_to_user\u003c/code>，read 用 \u003ccode>copy_from_user\u003c/code>"],"correct":2,"explanation":"API 名稱以核心為視角。write 將使用者資料複製進核心，read 將核心資料複製到使用者。複製前還應限制長度並處理失敗。","source":"複習筆記 · Lab 6 §8 User buffer 與 kernel buffer"},{"id":90,"topic":6,"prompt":"驅動可供 \u003ccode>cat /dev/demo\u003c/code> 讀取固定的一段資料。到達資料末端後，read callback 應回傳什麼？","options":["0，表示 EOF","-1，一律把正常結束當作讀取錯誤","最初的資料總長度，讓 cat 知道已讀完","資料最後一個 byte 的數值"],"correct":0,"explanation":"read 成功時回傳實際交付的 byte 數。固定資料已送完後回傳 0，讓使用者程式知道 EOF。若每次仍回正數而未處理 offset 或結束狀態，cat 可能一直讀。","source":"複習筆記 · Lab 6 §8 User buffer 與 kernel buffer"},{"id":91,"topic":6,"prompt":"驅動成功接收並處理了 12 bytes 的 write 要求，應回傳哪個值表示本次完整寫入？","options":["1","-12","12","0"],"correct":2,"explanation":"write 的正回傳值是已消耗的 byte 數。完整處理 12 bytes 時回傳 12。回傳 0 表示沒有寫入進度，負值用於錯誤碼，不能拿來表示完整成功。","source":"複習筆記 · Lab 6 §8 User buffer 與 kernel buffer"},{"id":92,"topic":6,"prompt":"\u003ccode>rmmod demo\u003c/code> 顯示模組仍在使用中。哪個操作次序最符合診斷流程？","options":["先刪除 \u003ccode>/dev/demo\u003c/code> 節點，已開啟的 fd 就一定會關閉","確認仍開啟的裝置或相依模組，正常結束引用後再卸載","先刪除 \u003ccode>demo.ko\u003c/code> 檔案，就能移除核心中仍使用的模組","用 mknod 改 major，原模組會被自動卸載"],"correct":1,"explanation":"模組仍被引用時，正常卸載會被拒絕。應檢查開啟的檔案或相依模組，先結束其使用。刪除磁碟上的模組或節點都不會自動釋放現有引用。","source":"複習筆記 · Lab 6 §9 常見錯誤"},{"id":93,"topic":7,"prompt":"下列哪一項正確描述 ISA 與微架構的關係？","options":["ISA 定義軟體可見的指令和行為，微架構決定處理器如何實現它","相同 ISA 的處理器必須有完全相同的功耗與速度","ISA 等同處理器的實體管線，微架構等同可執行檔格式","只要標為 RISC，便可推知任何工作負載下都較快"],"correct":0,"explanation":"軟體看到的是 ISA 提供的行為契約。不同處理器可用不同管線、快取與執行資源實現同一 ISA。要比較效能與功耗，還要看實作與工作負載。","source":"複習筆記 · Linux 與嵌入式系統 §2 ARM、RISC／CISC 與記憶體架構"},{"id":94,"topic":7,"prompt":"在教學模型中，Harvard 與 Von Neumann 架構的主要區別是什麼？","options":["Harvard 共用指令與資料通道，Von Neumann 一律分開","Harvard 只能跑 RISC，Von Neumann 只能跑 CISC","Harvard 分開指令與資料記憶體或通道，Von Neumann 共用","Harvard 沒有資料記憶體，Von Neumann 沒有指令記憶體"],"correct":2,"explanation":"Harvard 以分離路徑允許指令和資料各自存取。Von Neumann 模型讓兩者共享記憶體或通道，可能產生資源競爭。這個分類描述記憶體組織。","source":"複習筆記 · Linux 與嵌入式系統 §2 ARM、RISC／CISC 與記憶體架構"},{"id":95,"topic":7,"prompt":"\u003ccode>chmod 750 app\u003c/code> 對 owner、group、other 分別設定什麼權限？","options":["\u003ccode>rwx\u003c/code>、\u003ccode>r-x\u003c/code>、\u003ccode>---\u003c/code>","\u003ccode>r-x\u003c/code>、\u003ccode>rwx\u003c/code>、\u003ccode>---\u003c/code>","\u003ccode>rwx\u003c/code>、\u003ccode>r-x\u003c/code>、\u003ccode>r--\u003c/code>","\u003ccode>rwx\u003c/code>、\u003ccode>rw-\u003c/code>、\u003ccode>---\u003c/code>"],"correct":0,"explanation":"每位數都是 r=4、w=2、x=1 的和。7=4+2+1，5=4+1，0 不給任何權限。三位依序對應 owner、group、other。","source":"複習筆記 · Linux 與嵌入式系統 §5 權限、UID／GID 與檔案型態"},{"id":96,"topic":7,"prompt":"在課程的 Linux 路徑中，哪一組配對正確？","options":["\u003ccode>/root\u003c/code> 指整個檔案系統的根目錄，\u003ccode>/home\u003c/code> 存核心模組","\u003ccode>/dev/demo\u003c/code> 是模組原始碼，\u003ccode>/sys/class/gpio\u003c/code> 放套件下載檔","\u003ccode>/dev/demo\u003c/code> 是裝置節點，\u003ccode>/sys/class/gpio\u003c/code> 提供核心暴露的 GPIO 介面","\u003ccode>/proc\u003c/code> 放一般使用者家目錄，\u003ccode>/etc\u003c/code> 放 GPIO 裝置節點"],"correct":2,"explanation":"/dev 裝置節點可將檔案操作連到驅動。/sys 提供核心的裝置與系統屬性。/proc 提供程序與核心狀態，/root 則是 root 帳號的家目錄。","source":"複習筆記 · Linux 與嵌入式系統 §4 路徑與常見目錄"},{"id":97,"topic":7,"prompt":"I²C 的 START 條件和裝置選擇方式是什麼？","options":["SCL 為高時 SDA 由低轉高，接著拉低個別 CS","SCL 為高時 SDA 由高轉低，接著送裝置位址","SCL 由低轉高就表示 START，裝置靠 MOSI 方向選擇","SCL 為低時 SDA 由高轉低，以 UART baud rate 選裝置"],"correct":1,"explanation":"I²C 的 START 以 SCL 高時的 SDA 下降表示，接著通常會送 address 和讀寫位。相反的 SDA 上升是 STOP。CS 則屬於典型 SPI 的裝置選擇方式。","source":"複習筆記 · 通訊與感測器 §3 I²C 的時序怎麼看？"},{"id":98,"topic":7,"prompt":"SPI 設為 Mode 2，CPOL=1、CPHA=0。SCLK 閒置與取樣邊緣為何？","options":["閒置低，上升沿取樣","閒置高，下降沿取樣","閒置高，上升沿取樣","閒置低，下降沿取樣"],"correct":1,"explanation":"CPOL=1 令時脈閒置高，因此離開閒置的第一個邊緣是下降沿。CPHA=0 代表在第一個邊緣取樣。主機與周邊要對這個時序有相同設定。","source":"複習筆記 · 通訊與感測器 §4 SPI mode：先找閒置電位，再找取樣邊緣"},{"id":99,"topic":7,"prompt":"UART 採 19200 baud、8N1，假設每 symbol 一 bit 且連續傳送。理想每秒有多少資料 bytes？","options":["960 bytes/s","2400 bytes/s","19200 bytes/s","1920 bytes/s"],"correct":3,"explanation":"8N1 每個資料 byte 需要 1 start、8 data 和 1 stop，共 10 個 bit time。19200 ÷ 10 = 1920 bytes/s。2400 則漏算 start 和 stop 的成本。","source":"複習筆記 · 通訊與感測器 §5 UART 與 8N1 計算"},{"id":100,"topic":7,"prompt":"在課程相機架構中，設定曝光／增益與傳輸影像資料，通常分別走哪個介面？","options":["兩者都用 GPIO sysfs 的 value 傳輸","I²C 設定控制暫存器，MIPI CSI-2 傳輸影像","兩者都用 UART，以 baud rate 區分控制和影像","MIPI CSI-2 設定控制暫存器，I²C 傳輸原始影像"],"correct":1,"explanation":"I²C 常負責低頻寬的感測器控制，例如曝光與增益。CSI-2 負責高速影像資料。軟體處理圖像還需要 GStreamer 或其他應用層管線接收資料。","source":"複習筆記 · 通訊與感測器 §7 相機有兩條不同用途的通道"}],"topics":[{"label":"Lab 1 · 編譯與部署"},{"label":"Lab 2 · GPIO"},{"label":"Lab 3 · Qt"},{"label":"Lab 4 · 遠端控制"},{"label":"Lab 5 · SPI 與 ADC"},{"label":"Lab 6 · 驅動模組"},{"label":"Lecture · 基礎概念"}]}</script>
+<script>
+(() => {
+  'use strict';
+  const { questions, topics } = JSON.parse(document.getElementById('quiz-data').textContent);
+  const byId = new Map(questions.map(question => [question.id, question]));
+  const storageKey = 'microprocessor-mock-exam:v2';
+  const letters = 'ABCD';
+  const systemTheme = matchMedia('(prefers-color-scheme: dark)');
+  const views = { home: ['book','首頁'], mistakes: ['repeat','錯題'], stats: ['chart','統計'], settings: ['sliders','設定'] };
+  const modes = {
+    random: ['shuffle','隨機模式','打亂題目與選項，練習辨認觀念'],
+    ordered: ['list','順序模式','照題庫順序，逐章檢查觀念'],
+    mistakes: ['repeat','錯題本','連續答對兩次後移出錯題本'],
+  };
+  const iconPaths = {
+    chip:'<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4"/><rect x="9" y="9" width="6" height="6" rx="1"/>',
+    book:'<path d="M12 7c-3-2-6-2-9-1v13c3-1 6-1 9 1 3-2 6-2 9-1V6c-3-1-6-1-9 1v13"/>',
+    repeat:'<path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4m14-1v2a3 3 0 0 1-3 3H3"/>',
+    chart:'<path d="M3 3v18h18M8 16v-4m5 4V7m5 9v-6"/>',
+    sliders:'<path d="M5 3v5m0 4v9m7-18v10m0 4v4m7-18v3m0 4v11M2 8h6m1 9h6m1-11h6"/>',
+    moon:'<path d="M20.8 14.7A8.9 8.9 0 0 1 9.3 3.2 9 9 0 1 0 20.8 14.7Z"/>',
+    sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4 19 5"/>',
+    shuffle:'<path d="M3 6h3c4 0 6 12 10 12h5m-4-4 4 4-4 4M3 18h3c4 0 6-12 10-12h5m-4-4 4 4-4 4"/>',
+    list:'<path d="M9 6h12M9 12h12M9 18h12M4 5v2m-1 4h2l-2 3h2m-2 3h2v3H3"/>',
+    play:'<path d="m8 5 12 7-12 7z"/>',
+    right:'<path d="m9 5 7 7-7 7"/>',
+    left:'<path d="m15 5-7 7 7 7"/>',
+    back:'<path d="m11 5-7 7 7 7M4 12h16"/>',
+  };
+  const icon = name => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + iconPaths[name] + '</svg>';
+  const topicTitle = id => topics[id - 1].label;
+  const isMistake = record => record && record.attempts > record.correct && record.streak < 2;
+  const mistakes = () => questions.filter(question => isMistake(state.records[question.id]));
+  const countAnswered = () => Object.keys(state.records).length;
+  const newState = () => ({
+    records: {}, days: {},
+    settings: { theme: 'dark', autoNext: false },
+    setup: { mode: 'random', topic: 'all', size: 'all', fresh: false },
+    round: null,
+  });
+  let storageOK = true;
+  let state = newState();
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+    if (saved?.records && saved?.days && saved?.settings && saved?.setup) state = saved;
+  } catch { storageOK = false; }
+
+  let view = 'home';
+  let libraryTopic = 'all';
+  let jumpOpen = false;
+  let advanceTimer;
+  const app = document.getElementById('app');
+  const navigation = document.getElementById('navigation');
+  const storageNote = document.getElementById('storage-note');
+  const restartDialog = document.getElementById('restart-dialog');
+  let pendingRound = null;
+
+  function save() {
+    try { localStorage.setItem(storageKey, JSON.stringify(state)); }
+    catch { storageOK = false; }
+  }
+
+  function dayKey(date) {
+    return [date.getFullYear(),date.getMonth()+1,date.getDate()].join('-');
+  }
+
+  function streakDays() {
+    const date = new Date();
+    if (!state.days[dayKey(date)]) date.setDate(date.getDate()-1);
+    let count = 0;
+    while (state.days[dayKey(date)]) {
+      count++;
+      date.setDate(date.getDate()-1);
+    }
+    return count;
+  }
+
+  function updateTheme() {
+    const theme = state.settings.theme;
+    document.documentElement.dataset.theme = theme === 'light' || (theme === 'system' && !systemTheme.matches) ? 'light' : 'dark';
+  }
+
+  function shuffle(items) {
+    const result = [...items];
+    for (let index = result.length-1; index > 0; index--) {
+      const swap = Math.floor(Math.random() * (index+1));
+      [result[index],result[swap]] = [result[swap],result[index]];
+    }
+    return result;
+  }
+
+  function candidates(mode, topic, fresh) {
+    const pool = mode === 'mistakes' ? mistakes() : questions;
+    return pool.filter(question => (topic === 'all' || question.topic === Number(topic)) && (!fresh || !state.records[question.id]));
+  }
+
+  const caption = (eyebrow,title,description) => '<header class="intro"><p class="eyebrow">'+eyebrow+'</p><h1 tabindex="-1">'+title+'</h1><p class="muted">'+description+'</p></header>';
+  const button = (action, content, value='', attributes='') =>
+    '<button type="button" data-action="'+action+'" data-value="'+value+'" '+attributes+'>'+content+'</button>';
+  const chip = (action, text, value, selected, cls='chip') =>
+    button(action,text,value,'class="'+cls+'" aria-pressed="'+selected+'"');
+  const progress = (value,max,label) => '<progress class="progress" value="'+value+'" max="'+max+'" aria-label="'+label+'"></progress>';
+  const answered = round => Object.keys(round.answers).length;
+  const roundScore = round => round.items.reduce((total,item) => total + Number(round.answers[item.id] === byId.get(item.id).correct),0);
+  const roundReady = round => answered(round) === round.items.length;
+  const activeRound = () => state.round && !state.round.done;
+
+  function topicChips(action,selected) {
+    return chip(action,'全部章節（混合）','all',selected==='all') +
+      topics.map((topic,index)=>chip(action,topic.label,String(index+1),selected===String(index+1))).join('');
+  }
+
+  function home() {
+    const { mode,topic,size,fresh } = state.setup;
+    const matching = candidates(mode,topic,fresh).length;
+    const count = Math.min(matching,size === 'all' ? matching : Number(size));
+    const wrongCount = mistakes().length;
+    const resume = activeRound()
+      ? '<div class="panel resume row wrap-row"><div><h2>上次練習</h2><p class="small muted">已作答 '+answered(state.round)+' / '+state.round.items.length+' 題</p></div>'+button('resume','繼續練習','','class="inline"')+'</div>'
+      : '';
+    const tiles = Object.entries(modes).map(([key,[symbol,label,description]])=>button('mode',
+      '<span class="tile-icon">'+icon(symbol)+'</span><strong>'+label+'</strong><span class="muted small">'+description+'</span>',key,
+      'class="mode" aria-pressed="'+(key===mode)+'"')).join('');
+    const sizes = ['all','10','20','30'].map(value=>chip('size',value==='all'?'全部':value+' 題',value,value===size,'count')).join('');
+    const scope = topic === 'all' ? '全部章節混合' : topicTitle(Number(topic));
+    const empty = !count && mode==='mistakes' ? '這個範圍目前沒有待複習的錯題。' : !count ? '這個範圍目前沒有符合條件的題目。' : '';
+    return caption('MICROPROCESSOR REVIEW','微處理機模擬題','Lab 1–6 與 Lecture · 100 題單選 · 選個範圍開始練習')+resume+
+      '<section class="panel"><div class="row"><h2>開始新一輪</h2><span class="muted small" role="status">符合條件 '+matching+' 題</span></div>'+
+      '<div class="mode-grid" role="group" aria-label="練習模式">'+tiles+'</div>'+
+      '<div class="setup-field"><div class="row"><h3>章節範圍</h3><span class="muted small">'+scope+'</span></div><div class="chips" role="group" aria-label="章節範圍">'+topicChips('topic',topic)+'</div></div>'+
+      '<div class="setup-field"><div class="row wrap-row"><h3>本輪題數</h3><label class="checkline"><input id="fresh" type="checkbox" '+(fresh?'checked ':'')+(mode==='mistakes'?'disabled':'')+'>只練未作答的題目</label></div><div class="chips" role="group" aria-label="本輪題數">'+sizes+'</div></div>'+
+      button('start',icon('play')+' 開始練習 · '+count+' 題','','class="primary inline start" '+(count?'':'disabled'))+
+      (empty?'<p class="small muted" style="margin-top:9px">'+empty+'</p>':'')+'</section>'+
+      '<div class="shortcuts">'+
+      button('nav','<span class="tile-icon">'+icon('repeat')+'</span><span class="grow"><strong>錯題本</strong><br><span class="small muted">'+(wrongCount?'待複習 '+wrongCount+' 題':'目前沒有錯題')+'</span></span>'+icon('right'),'mistakes','class="shortcut"')+
+      button('nav','<span class="tile-icon">'+icon('chart')+'</span><span class="grow"><strong>學習統計</strong><br><span class="small muted">已作答 '+countAnswered()+' 題 · 連續 '+streakDays()+' 天</span></span>'+icon('right'),'stats','class="shortcut"')+'</div>';
+  }
+
+  function solution(question, letter, result) {
+    const lead = result === undefined ? '答案 '+letter : result ? '答對了 · '+letter : '答錯了 · 正確選項 '+letter;
+    return '<div class="solution"><p><strong '+(result===false?'class="wrong-text"':'')+'>'+lead+'</strong> '+question.options[question.correct]+'</p><p>'+question.explanation+'</p><p class="small muted">'+question.source+'</p></div>';
+  }
+
+  function practice() {
+    const round = state.round;
+    const item = round.items[round.index];
+    const question = byId.get(item.id);
+    const pick = round.picks[item.id];
+    const checked = Object.hasOwn(round.answers,item.id);
+    const right = round.answers[item.id] === question.correct;
+    const displayedCorrect = letters[item.order.indexOf(question.correct)];
+    const optionList = item.order.map((option,index) => {
+      const correct = checked && option===question.correct;
+      const wrong = checked && option===round.answers[item.id] && !right;
+      const cls = correct ? ' correct' : wrong ? ' wrong' : '';
+      const marker = correct ? '<span class="marker" aria-label="正確選項">✓</span>' : wrong ? '<span class="marker" aria-label="你的選項答錯">✕</span>' : '<span class="marker" aria-hidden="true"></span>';
+      return '<label class="option'+cls+'"><input type="radio" name="choice" value="'+option+'" '+(pick===option?'checked ':'')+(checked?'disabled':'')+'><span class="letter">'+letters[index]+'</span><span>'+question.options[option]+'</span>'+marker+'</label>';
+    }).join('');
+    const jumpList = round.items.map((entry,index)=>{
+      const record = round.answers[entry.id];
+      const answered = Object.hasOwn(round.answers,entry.id);
+      const cls = answered ? record===byId.get(entry.id).correct?' correct':' wrong' : '';
+      return button('jump',String(index+1),index,'class="q-jump'+cls+'" '+(index===round.index?'aria-current="step" ':'')+
+        'aria-label="第 '+(index+1)+' 題'+(answered?(cls===' correct'?'，答對':'，答錯'):'，未作答')+'"');
+    }).join('');
+    const label = checked ? roundReady(round) && round.index===round.items.length-1 ? '查看本輪結果' : '下一題' : '確認答案';
+    return '<div class="practice"><div class="practice-head row">'+button('nav',icon('back')+' 返回','','class="inline"')+
+      '<div class="inline"><span style="text-align:right"><strong>'+modes[round.mode][1]+'</strong><br><span class="muted">第 '+(round.index+1)+' / '+round.items.length+' 題</span></span>'+
+      button('toggle-jump',icon('list')+' 題目導覽','','class="inline" aria-controls="jump-panel" aria-expanded="'+jumpOpen+'"')+'</div></div>'+
+      progress(answered(round),round.items.length,'本輪已作答')+
+      (jumpOpen?'<div class="panel jump-panel" id="jump-panel"><h2>本輪題目</h2><div class="jump-grid">'+jumpList+'</div></div>':'')+
+      '<section class="panel practice-card" aria-label="練習題"><div class="badges"><span class="badge">'+topicTitle(question.topic)+'</span><span class="badge">單選題</span><span class="badge accent">題庫第 '+question.id+' 題</span></div>'+
+      '<fieldset><legend tabindex="-1">'+question.prompt+'</legend>'+optionList+'</fieldset>'+
+      (checked?solution(question,displayedCorrect,right):'')+'</section>'+
+      '<div class="practice-actions">'+button('previous',icon('left'),'','aria-label="上一題" '+(round.index===0?'disabled':''))+
+      button(checked?'next':'submit',label+(checked?' '+icon('right'):''),'','id="practice-primary" class="primary inline" '+(!checked&&pick===undefined?'disabled':''))+'</div></div>';
+  }
+
+  function mistakesView() {
+    const items = mistakes();
+    return caption('REVIEW','錯題本','每次答錯都會收進錯題本，連續答對兩次後移出。')+
+      '<div class="panel">'+(items.length?
+      '<div class="row wrap-row"><h2>待複習 '+items.length+' 題</h2>'+button('practice-mistakes',icon('play')+' 開始錯題練習','','class="primary inline"')+'</div>'+
+      items.map(question=>'<details class="list-row"><summary>'+question.id+' · '+question.prompt+'</summary><p class="small muted">'+topicTitle(question.topic)+' · 連續答對 '+state.records[question.id].streak+' / 2 次</p>'+solution(question,letters[question.correct])+button('practice-one','練這一題',question.id)+'</details>').join('')
+      :'<div class="empty"><h2>目前沒有錯題</h2><p class="muted">答錯的題目會自動列在這裡。</p>'+button('nav','回首頁練習','home','class="inline"')+'</div>')+'</div>';
+  }
+
+  function totals(records) {
+    return records.reduce((total,record) => ({ attempts:total.attempts+record.attempts, correct:total.correct+record.correct }),{attempts:0,correct:0});
+  }
+
+  const rate = score => score.attempts ? Math.round(score.correct/score.attempts*100)+'%' : '—';
+  const metric = (value,label,note) => '<div class="metric"><strong>'+value+'</strong><h3>'+label+'</h3><p class="muted small">'+note+'</p></div>';
+
+  function stats() {
+    const score = totals(Object.values(state.records));
+    return caption('PROGRESS','學習統計','正確率以歷次作答計算，章節進度以做過的不同題目計算。')+
+      '<div class="metrics">'+metric(rate(score),'總正確率',score.attempts?'答對 '+score.correct+' / '+score.attempts+' 次':'尚未作答')+
+      metric(countAnswered(),'已作答題數','題庫共 100 題')+metric(mistakes().length,'錯題本','待複習題數')+metric(streakDays(),'連續練習','天')+'</div>'+
+      '<section class="panel"><h2>章節表現</h2>'+
+      topics.map((topic,index)=>{
+        const subset = questions.filter(question=>question.topic===index+1);
+        const records = subset.map(question=>state.records[question.id]).filter(Boolean);
+        const score = totals(records);
+        return '<div class="stat-row"><div class="row"><h3>'+topic.label+'</h3><span class="muted small">'+(score.attempts?'正確率 '+rate(score):'未作答')+' · '+records.length+' / '+subset.length+' 題</span></div>'+
+          progress(records.length,subset.length,topic.label+' 作答進度')+'</div>';
+      }).join('')+'</section>';
+  }
+
+  function settings() {
+    return caption('SETTINGS','設定','調整外觀與練習行為。')+
+      '<div class="section-stack">'+
+      '<section class="panel setting"><h2>外觀</h2><p class="muted">選擇題庫配色。</p><div class="chips" role="group" aria-label="外觀">'+
+      [['system','跟隨系統'],['light','淺色'],['dark','深色']].map(([key,label])=>chip('theme',label,key,state.settings.theme===key)).join('')+'</div></section>'+
+      '<section class="panel setting row wrap-row"><div><h2>答對後自動下一題</h2><p class="muted">答對後停留 1 秒。關閉時可自行讀完詳解再繼續。</p></div><label class="checkline"><input id="auto-next" type="checkbox" '+(state.settings.autoNext?'checked':'')+'>啟用</label></section>'+
+      '<section class="panel setting row wrap-row"><div><h2>重設所有進度</h2><p class="muted">清除作答紀錄、錯題本與續練進度。</p></div>'+button('reset','重設進度','','class="danger"')+'</section>'+
+      '<section class="panel"><h2>關於題庫</h2><p class="muted">微處理機模擬題 · 100 題 · Lab 1–6 與 Lecture</p>'+button('nav','瀏覽完整題庫','library','class="text-button"')+'</section></div>';
+  }
+
+  function library() {
+    const list = candidates('ordered',libraryTopic,false);
+    return caption('QUESTION BANK','完整題庫','展開任一題可查看選項、答案與詳解。')+
+      '<section class="panel"><div class="chips" role="group" aria-label="題庫章節">'+topicChips('library-topic',libraryTopic)+'</div>'+
+      list.map(question=>'<details class="list-row"><summary>'+question.id+' · '+question.prompt+'</summary><ol type="A" class="library-options">'+
+        question.options.map(option=>'<li>'+option+'</li>').join('')+'</ol>'+solution(question,letters[question.correct])+'</details>').join('')+'</section>';
+  }
+
+  function result() {
+    const round = state.round;
+    const wrong = round.items.filter(item => round.answers[item.id] !== byId.get(item.id).correct);
+    const count = round.items.length;
+    return caption('RESULT','本輪練習完成',modes[round.mode][1]+' · '+count+' 題')+
+      '<div class="metrics">'+metric(roundScore(round)+' / '+count,'本輪答對','正確題數')+
+      metric(Math.round(roundScore(round)/count*100)+'%','本輪正確率','已完成 '+count+' 題')+'</div>'+
+      '<div class="panel"><div class="row wrap-row"><h2>'+(wrong.length?'本輪錯題 · '+wrong.length+' 題':'本輪全部答對')+'</h2>'+
+      button('nav','返回首頁','home','class="primary inline"')+'</div>'+
+      wrong.map(item=>{
+        const question=byId.get(item.id);
+        return '<details class="list-row"><summary>'+question.id+' · '+question.prompt+'</summary>'+solution(question,letters[item.order.indexOf(question.correct)],false)+'</details>';
+      }).join('')+'</div>';
+  }
+
+  function render(focusTarget) {
+    clearTimeout(advanceTimer);
+    updateTheme();
+    const theme = document.documentElement.dataset.theme;
+    navigation.innerHTML = button('nav','<span class="brand-logo">'+icon('chip')+'</span>微處理機模擬題','home','class="brand"')+
+      '<div class="top-actions"><nav class="nav" aria-label="主選單">'+Object.entries(views).map(([key,[symbol,label]])=>
+        button('nav',icon(symbol)+label,key,view===key?'aria-current="page"':'')).join('')+'</nav>'+
+      button('toggle-theme',icon(theme==='dark'?'moon':'sun'),'','class="icon-button" aria-label="切換至'+(theme==='dark'?'淺色':'深色')+'外觀"')+'</div>';
+    const renderView = {home,practice,mistakes:mistakesView,stats,settings,library,result};
+    app.innerHTML = renderView[view]();
+    storageNote.innerHTML = (storageOK?'作答進度儲存在目前的瀏覽器。':'此瀏覽器目前無法儲存進度，本次作答保留到頁面關閉。')+
+      (view==='home'?button('nav','瀏覽完整題庫','library','class="text-button"'):'');
+    if (focusTarget) focusTarget()?.focus({preventScroll:true});
+  }
+
+  function go(target) {
+    jumpOpen = false;
+    view = target;
+    render(() => app.querySelector('h1, legend'));
+    window.scrollTo(0,0);
+  }
+
+  function start(mode, items) {
+    if (!items.length) return;
+    if (activeRound()) {
+      pendingRound = { mode, items };
+      restartDialog.returnValue = 'cancel';
+      restartDialog.showModal();
+      return;
+    }
+    beginRound(mode,items);
+  }
+
+  restartDialog.addEventListener('click', event => {
+    const choice = event.target.closest('button');
+    if (choice) restartDialog.close(choice.value);
+  });
+
+  restartDialog.addEventListener('close', () => {
+    const request = pendingRound;
+    pendingRound = null;
+    if (restartDialog.returnValue === 'start' && request) beginRound(request.mode,request.items);
+  });
+
+  function beginRound(mode, items) {
+    const ordered = mode==='ordered' ? items : shuffle(items);
+    state.round = {
+      mode, index:0, done:false, picks:{}, answers:{},
+      items:ordered.map(question=>({ id:question.id, order:mode==='ordered'?[0,1,2,3]:shuffle([0,1,2,3]) })),
+    };
+    save();
+    go('practice');
+  }
+
+  function next() {
+    const round = state.round;
+    if (round.index < round.items.length-1) {
+      round.index++;
+    } else if (!roundReady(round)) {
+      round.index = round.items.findIndex(item => !Object.hasOwn(round.answers,item.id));
+    } else {
+      round.done = true;
+      save();
+      go('result');
+      return;
+    }
+    save();
+    go('practice');
+  }
+
+  function submit() {
+    const round = state.round;
+    const {id} = round.items[round.index];
+    const pick = round.picks[id];
+    if (pick===undefined || Object.hasOwn(round.answers,id)) return;
+    const correct = pick===byId.get(id).correct;
+    round.answers[id]=pick;
+    const record = state.records[id] || {attempts:0,correct:0,streak:0};
+    record.attempts++;
+    if (correct) record.correct++;
+    record.streak = correct ? Math.min(record.streak+1,2) : 0;
+    state.records[id]=record;
+    state.days[dayKey(new Date())]=true;
+    save();
+    render(() => app.querySelector('#practice-primary'));
+    if (correct && state.settings.autoNext) advanceTimer=setTimeout(next,1000);
+  }
+
+  document.addEventListener('change', event => {
+    const input = event.target;
+    if (input.name==='choice' && view==='practice') {
+      state.round.picks[state.round.items[state.round.index].id]=Number(input.value);
+      save();
+      document.getElementById('practice-primary').disabled=false;
+    } else if (input.id==='fresh') {
+      state.setup.fresh=input.checked;
+      save();
+      render(() => document.getElementById('fresh'));
+    } else if (input.id==='auto-next') {
+      state.settings.autoNext=input.checked;
+      save();
+    }
+  });
+
+  document.addEventListener('click', event => {
+    const control = event.target.closest('button[data-action]');
+    if (!control) return;
+    const { action,value } = control.dataset;
+    const refocus = () => document.querySelector('button[data-action="'+action+'"][data-value="'+value+'"]');
+    switch (action) {
+      case 'nav': go(value || 'home'); break;
+      case 'mode':
+      case 'topic':
+      case 'size':
+        state.setup[action]=value;
+        if (state.setup.mode==='mistakes') state.setup.fresh=false;
+        save();
+        render(refocus);
+        break;
+      case 'library-topic': libraryTopic=value; render(refocus); break;
+      case 'start': {
+        const {mode,topic,size,fresh}=state.setup;
+        let pool=candidates(mode,topic,fresh);
+        if (mode!=='ordered' && size!=='all') pool=shuffle(pool);
+        start(mode,size==='all'?pool:pool.slice(0,Number(size)));
+        break;
+      }
+      case 'practice-mistakes': start('mistakes',mistakes()); break;
+      case 'practice-one': start('mistakes',[byId.get(Number(value))]); break;
+      case 'resume': if (activeRound()) go('practice'); break;
+      case 'toggle-jump': jumpOpen=!jumpOpen; render(refocus); break;
+      case 'jump': state.round.index=Number(value); save(); go('practice'); break;
+      case 'previous': state.round.index--; save(); go('practice'); break;
+      case 'submit': submit(); break;
+      case 'next': next(); break;
+      case 'toggle-theme': state.settings.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'; save(); render(refocus); break;
+      case 'theme': state.settings.theme=value; save(); render(refocus); break;
+      case 'reset':
+        if (confirm('確定清除這個瀏覽器中的作答紀錄、錯題本與續練進度？')) {
+          const settings=state.settings;
+          state=newState();
+          state.settings=settings;
+          save();
+          render(refocus);
+        }
+        break;
+    }
+  });
+
+  systemTheme.addEventListener('change',() => {
+    if (state.settings.theme==='system') updateTheme();
+  });
+  render();
+})();
+
+</script>
+</body>
+</html>
